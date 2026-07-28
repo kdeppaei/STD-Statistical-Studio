@@ -1,0 +1,17 @@
+# Local Codex working artifacts and prior report outputs
+outputs/
+work/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Temporary build files
+*.tmp
+*.log

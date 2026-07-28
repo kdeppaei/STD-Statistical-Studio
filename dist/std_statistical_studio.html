@@ -1,0 +1,1889 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>STD Statistical Studio v0.6｜Procedure Engine</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root{
+      --bg:#0a1020;--panel:#111a2a;--panel2:#162238;--panel3:#0d1626;
+      --line:#2a3850;--text:#edf4ff;--muted:#9bacc4;
+      --accent:#7c9cff;--accent2:#69d8c0;--good:#69dfa0;
+      --warn:#ffc267;--bad:#ff7f91;--white:#fff;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);
+      font-family:"Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}.hidden{display:none!important}
+    .app{min-height:100vh;display:grid;grid-template-rows:auto 1fr}
+    .topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;
+      justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);
+      background:rgba(10,16,32,.96);backdrop-filter:blur(12px)}
+    .brand{display:flex;align-items:center;gap:11px;min-width:0}
+    .logo{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
+      color:#07101a;background:linear-gradient(145deg,var(--accent),var(--accent2));font-weight:900}
+    .brand h1{margin:0;font-size:17px}.brand p{margin:3px 0 0;color:var(--muted);font-size:12px}
+    .actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+    .btn{border:1px solid var(--line);background:var(--panel);color:var(--text);
+      border-radius:9px;padding:8px 11px;display:inline-flex;align-items:center;gap:6px}
+    .btn:hover{border-color:#50658b}.btn.primary{background:var(--accent);border-color:var(--accent);
+      color:#07101a;font-weight:800}.btn.small{padding:6px 8px;font-size:12px}
+    .layout{display:grid;grid-template-columns:286px minmax(500px,1fr) 338px;
+      min-height:calc(100vh - 67px)}
+    .sidebar,.inspector{background:var(--panel);overflow:auto}
+    .sidebar{border-right:1px solid var(--line)}.inspector{border-left:1px solid var(--line)}
+    .workspace{min-width:0;display:grid;grid-template-rows:auto 1fr auto;overflow:hidden}
+    .sidebar-head{padding:14px;border-bottom:1px solid var(--line)}
+    .sidebar-head b{display:block}.sidebar-head span{display:block;color:var(--muted);font-size:11px;margin-top:4px}
+    .nav{padding:8px}
+    .nav-group{border-bottom:1px solid rgba(42,56,80,.7)}
+    .nav-title{width:100%;border:0;background:transparent;color:var(--text);
+      padding:12px 8px;display:grid;grid-template-columns:36px 1fr auto;gap:9px;align-items:center;text-align:left}
+    .nav-title:hover{background:#152137}.nav-step{height:30px;border-radius:9px;
+      display:grid;place-items:center;background:#1b2941;color:#cbd9ee;font-size:11px;font-weight:800}
+    .nav-title b{font-size:13px}.nav-title small{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+    .nav-title i{font-style:normal;color:var(--muted)}
+    .nav-sub{display:none;padding:0 5px 9px 48px}.nav-group.open .nav-sub{display:grid;gap:3px}
+    .nav-item{border:0;background:transparent;color:#c6d4e8;border-radius:8px;padding:8px 9px;text-align:left}
+    .nav-item:hover{background:#17243a}.nav-item.active{background:rgba(124,156,255,.14);color:#fff}
+    .nav-item span{display:block;font-size:12px}.nav-item small{display:block;color:var(--muted);font-size:9px;margin-top:2px}
+    .data-block{padding:14px;border-top:1px solid var(--line)}
+    .data-block h3{margin:0 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#c4d2e7}
+    .upload{border:2px dashed #425473;border-radius:11px;padding:15px;text-align:center;background:#0c1525}
+    .upload.drag{border-color:var(--accent);background:rgba(124,156,255,.08)}
+    input[type=file]{display:none}
+    .status{margin-top:8px;border:1px solid var(--line);background:#0d1626;border-radius:8px;padding:8px 9px;font-size:10px;line-height:1.5}
+    .status.good{border-color:rgba(105,223,160,.35)}.status.warn{border-color:rgba(255,194,103,.35)}
+    .workspace-head{padding:14px 16px;border-bottom:1px solid var(--line);
+      display:flex;align-items:flex-start;justify-content:space-between;gap:12px;background:#0d1626}
+    .workspace-head h2{margin:0;font-size:19px}.workspace-head p{margin:4px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
+    .badges{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+    .badge{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 8px;font-size:10px}
+    .badge.good{border-color:rgba(105,223,160,.35);color:#c9f7dc}
+    .stage{min-height:0;overflow:auto;padding:14px}
+    .stage-shell{min-height:520px;border:1px solid var(--line);border-radius:13px;overflow:hidden;background:#060b14}
+    .canvas{width:100%;height:520px;display:block}
+    .table-stage{padding:13px;overflow:auto}.tablewrap{border:1px solid var(--line);border-radius:9px;overflow:auto}
+    table{border-collapse:collapse;width:100%;font-size:11px;white-space:nowrap}
+    th,td{padding:7px 8px;border-right:1px solid #26344a;border-bottom:1px solid #26344a;text-align:left}
+    th{position:sticky;top:0;background:#172338;color:#d9e5f6}
+    .message{padding:28px;color:var(--muted);line-height:1.7}
+    .method-strip{border-top:1px solid var(--line);background:#08101d;padding:10px 14px;display:grid;
+      grid-template-columns:1.1fr 1fr 1fr;gap:10px}
+    .method-box{border:1px solid var(--line);border-radius:9px;padding:9px;background:#0e1829}
+    .method-box span{display:block;color:var(--muted);font-size:10px}.method-box b{display:block;font-size:11px;margin-top:4px;line-height:1.45}
+    .ins-head{padding:14px;border-bottom:1px solid var(--line)}
+    .ins-head span{display:block;color:var(--muted);font-size:10px}.ins-head b{display:block;margin-top:3px}
+    .section{padding:14px;border-bottom:1px solid var(--line)}
+    .section h3{margin:0 0 10px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#c5d3e8}
+    .field{display:grid;gap:5px;margin-bottom:10px}.field label{font-size:11px;color:#c7d4e7}
+    .input,.select,.textarea{width:100%;border:1px solid var(--line);background:#0c1525;color:var(--text);
+      border-radius:8px;padding:8px 9px;outline:none}.textarea{min-height:80px;resize:vertical}
+    .input:focus,.select:focus,.textarea:focus{border-color:var(--accent)}
+    .row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .metric-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+    .metric-card{border:1px solid var(--line);border-radius:8px;background:#0c1525;padding:8px}
+    .metric-card span{display:block;color:var(--muted);font-size:9px}.metric-card b{display:block;margin-top:3px;font-size:14px}
+    .result{border:1px solid var(--line);border-radius:9px;background:#0b1423;padding:10px;font-size:11px;line-height:1.65}
+    .result.good{border-left:4px solid var(--good)}.result.warn{border-left:4px solid var(--warn)}.result.bad{border-left:4px solid var(--bad)}
+    .role-list{display:grid;gap:7px}.role{border:1px solid var(--line);border-radius:8px;padding:8px;background:#0c1525}
+    .role b{display:block;font-size:11px}.role span{display:block;color:var(--muted);font-size:10px;line-height:1.45;margin-top:3px}
+    .output{border-top:1px solid var(--line);background:#08101d;display:grid;grid-template-rows:auto auto;max-height:300px}
+    .tabs{display:flex;gap:2px;padding:8px 9px 0;overflow:auto}
+    .tab{border:1px solid transparent;border-bottom:0;background:transparent;color:var(--muted);
+      padding:7px 9px;border-radius:8px 8px 0 0;white-space:nowrap}
+    .tab.active{background:var(--panel);border-color:var(--line);color:var(--text)}
+    .out-body{padding:0 9px 9px}.out-panel{display:none;border:1px solid var(--line);border-radius:0 9px 9px 9px;background:#060c16}
+    .out-panel.active{display:block}.code{margin:0;padding:10px;max-height:220px;overflow:auto;white-space:pre-wrap;
+      font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;color:#d9e7fb}
+    .report{padding:18px;background:#f4f7fb;color:#17202c;min-height:520px}
+    .report h2{margin:0}.report p{color:#667085}.report-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
+    .report-card{background:white;border:1px solid #d6e0ea;border-radius:9px;padding:10px}
+    .report-card small{display:block;color:#667085}.report-card strong{display:block;color:#173d5e;font-size:19px;margin-top:4px}
+    .report-box{background:white;border:1px solid #d6e0ea;border-radius:9px;padding:12px;margin-top:10px;line-height:1.7}
+    .toast{position:fixed;right:16px;bottom:16px;background:#16243a;border:1px solid #40577c;border-radius:9px;
+      padding:9px 11px;opacity:0;pointer-events:none;transition:.18s}.toast.show{opacity:1}
+    @media(max-width:1400px){.topbar{flex-wrap:wrap}.actions{max-width:100%}.layout{grid-template-columns:250px 1fr}.inspector{grid-column:1/-1;border-left:0;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr}.stage-shell{min-height:470px}.canvas{height:470px}}
+    @media(max-width:760px){.topbar{align-items:flex-start;flex-direction:column}.layout{display:block}.sidebar{border-right:0}.inspector{display:block}.method-strip{grid-template-columns:1fr}.report-grid{grid-template-columns:1fr 1fr}}
+    @media print{.topbar,.sidebar,.inspector,.output,.workspace-head,.method-strip{display:none!important}.layout{display:block}.stage{padding:0}.stage-shell{border:0}.report{min-height:auto}}
+    /* v0.6 UI modules */
+    .badge.warn{border-color:rgba(255,194,103,.45);color:#ffe0a8}
+    .badge.bad{border-color:rgba(255,127,145,.5);color:#ffc4ce}
+    .btn:disabled{opacity:.45;cursor:not-allowed}
+    .check-role{display:flex;gap:7px;align-items:center}
+    .execution-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .status-chip{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-size:10px;font-weight:800}
+    .status-chip.good{border-color:rgba(105,223,160,.45);color:#c9f7dc;background:rgba(105,223,160,.08)}
+    .status-chip.warn{border-color:rgba(255,194,103,.5);color:#ffe0a8;background:rgba(255,194,103,.08)}
+    .status-chip.bad{border-color:rgba(255,127,145,.5);color:#ffc4ce;background:rgba(255,127,145,.08)}
+    .validation-list{margin-top:9px;color:var(--muted);font-size:10px;line-height:1.5;display:grid;gap:4px}
+    .assumption-item{display:flex;align-items:center;gap:7px;padding:6px 0;color:#cbd7e9;font-size:10px}
+    .assumption-item .dot{width:7px;height:7px;border-radius:50%;background:var(--accent2);box-shadow:0 0 0 3px rgba(105,216,192,.12)}
+    .advisor-grid{padding:18px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .advisor-card{border:1px solid var(--line);background:#0d1727;color:var(--text);border-radius:11px;padding:15px;text-align:left}
+    .advisor-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+    .advisor-card span,.eyebrow{display:block;color:var(--accent2);font-size:9px;letter-spacing:.12em;font-weight:800}
+    .advisor-card b{display:block;margin-top:7px;font-size:14px}.advisor-card small{display:block;margin-top:6px;color:var(--muted);line-height:1.45}
+    .summary-line{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
+    .summary-line>div{border:1px solid var(--line);border-radius:9px;padding:9px;background:#0c1525;display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .summary-line small{color:var(--muted)}
+    .diagnostic-note,.inference-summary{border:1px solid var(--line);border-radius:9px;padding:11px;margin-top:12px;color:#c6d4e8;line-height:1.6;background:#0c1525}
+    .recommendation{padding:22px;max-width:1000px}.recommendation h2{margin:8px 0 5px;font-size:25px}
+    .confidence{height:8px;background:#1b2941;border-radius:99px;overflow:hidden;max-width:560px}.confidence span{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+    .recommendation>p{color:var(--muted);margin:6px 0 18px}
+    .recommend-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .recommend-grid section{border:1px solid var(--line);border-radius:10px;padding:12px;background:#0d1727;line-height:1.65;font-size:11px}
+    .recommend-grid h3{margin:0 0 7px;color:#dce8f8;font-size:12px}
+    .link-button{display:block;width:100%;border:0;background:transparent;color:var(--accent2);text-align:left;padding:4px 0}
+    .stage-title{margin:0 0 12px;font-size:18px}.result-metrics{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .posthoc-stage{padding:12px;display:grid;gap:12px}#differenceCanvas{width:100%;display:block;border:1px solid var(--line);border-radius:9px;background:#060b14}
+    .chart-tooltip{position:fixed;z-index:1000;display:none;background:#101b2d;color:#edf4ff;border:1px solid #50658b;border-radius:7px;padding:7px 9px;font-size:10px;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.32)}
+    .chart-tooltip.show{display:block}
+    .output{max-height:330px}.tabs{scrollbar-width:thin}
+    @media(max-width:760px){.advisor-grid,.recommend-grid,.summary-line{grid-template-columns:1fr}.result-metrics{grid-template-columns:1fr 1fr}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">Σ</div>
+      <div>
+        <h1>STD Statistical Studio <span style="color:var(--muted)">v0.6</span></h1>
+        <p>Procedure Engine · Excel → STD → deterministic statistics → chart/report</p>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="demoBtn">示範資料</button>
+      <label class="btn primary" for="fileInput">載入 Excel／CSV</label>
+      <input id="fileInput" type="file" accept=".xlsx,.xls,.csv">
+      <button class="btn" id="printBtn">列印／PDF</button>
+      <button class="btn" id="exportBtn">匯出專案 JSON</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <b>STATISTICAL PROCEDURES</b>
+        <span>像套裝軟體一樣依分析目的分類，不再把圖表全部堆在同一頁。</span>
+      </div>
+      <nav class="nav" id="nav"></nav>
+      <div class="data-block">
+        <h3>資料狀態</h3>
+        <div class="upload" id="dropZone"><b>拖曳檔案到此</b><div style="font-size:10px;color:var(--muted);margin-top:4px">只在瀏覽器記憶體中處理</div></div>
+        <div class="status" id="dataStatus">尚未載入資料。</div>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <div class="workspace-head">
+        <div>
+          <h2 id="procTitle">資料總覽</h2>
+          <p id="procDesc">載入資料後檢查欄位型態、缺值、樣本數與可執行程序。</p>
+        </div>
+        <div class="badges">
+          <span class="badge" id="rowBadge">0 rows</span>
+          <span class="badge" id="numBadge">0 numeric</span>
+          <span class="badge good" id="engineBadge">STD Runtime v0.6 ready</span>
+          <span class="badge" id="procedureBadge">Ready</span>
+        </div>
+      </div>
+
+      <section class="stage">
+        <div class="stage-shell" id="stageShell">
+          <div class="message">請載入 Excel／CSV，或按「示範資料」。</div>
+        </div>
+      </section>
+
+      <div class="method-strip">
+        <div class="method-box"><span>Procedure</span><b id="methodId">data.overview</b></div>
+        <div class="method-box"><span>需要的資料角色</span><b id="methodRoles">欄位與資料型態</b></div>
+        <div class="method-box"><span>防呆原則</span><b id="methodRule">資料不足時拒絕計算，不用漂亮圖掩蓋缺口。</b></div>
+      </div>
+
+      <section class="output">
+        <div class="tabs">
+          <button class="tab active" data-tab="std">STD JSON</button>
+          <button class="tab" data-tab="plan">Procedure Plan</button>
+          <button class="tab" data-tab="assumption">Assumption Report</button>
+          <button class="tab" data-tab="result">Result IR</button>
+          <button class="tab" data-tab="audit">Audit Trail</button>
+          <button class="tab" data-tab="prompt">LLM Prompt</button>
+        </div>
+        <div class="out-body">
+          <div class="out-panel active" id="out-std"><pre class="code" id="stdOut">{}</pre></div>
+          <div class="out-panel" id="out-plan"><pre class="code" id="planOut">{}</pre></div>
+          <div class="out-panel" id="out-assumption"><pre class="code" id="assumptionOut">{}</pre></div>
+          <div class="out-panel" id="out-result"><pre class="code" id="resultOut">{}</pre></div>
+          <div class="out-panel" id="out-audit"><pre class="code" id="auditOut">[]</pre></div>
+          <div class="out-panel" id="out-prompt"><pre class="code" id="promptOut"></pre></div>
+        </div>
+      </section>
+    </main>
+
+    <aside class="inspector">
+      <div class="ins-head">
+        <span>PROCEDURE INSPECTOR</span>
+        <b id="insTitle">資料總覽</b>
+      </div>
+      <section class="section">
+        <h3>Variable Roles</h3>
+        <div id="controls"></div>
+      </section>
+      <section class="section">
+        <h3>Procedure Parameters</h3>
+        <div id="parameterControls"></div>
+      </section>
+      <section class="section">
+        <h3>Assumptions</h3>
+        <div id="assumptionPanel"></div>
+      </section>
+      <section class="section">
+        <h3>Execution</h3>
+        <div id="executionPanel"></div>
+      </section>
+      <section class="section">
+        <h3>Result Summary</h3>
+        <div id="resultPanel" class="result">等待資料。</div>
+      </section>
+    </aside>
+  </div>
+</div>
+<div class="toast" id="toast" aria-live="polite"></div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const blank = v => v == null || String(v).trim() === "";
+  const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
+  const mean = a => a.length ? a.reduce((s,x)=>s+x,0)/a.length : null;
+  const sum = a => a.reduce((s,x)=>s+x,0);
+  const sampleVar = a => {if(a.length<2)return null;const m=mean(a);return sum(a.map(x=>(x-m)**2))/(a.length-1)};
+  const sampleStd = a => {const v=sampleVar(a);return v==null?null:Math.sqrt(v)};
+  const fmt = (v,d=3) => v==null || !Number.isFinite(v) ? "—" : Number(v).toFixed(d);
+  const toNumber = v => {
+    if(typeof v==="number"&&Number.isFinite(v)) return v;
+    if(blank(v)) return null;
+    const n=Number(String(v).replace(/,/g,"").replace(/[^\d+\-.eE]/g,""));
+    return Number.isFinite(n)?n:null;
+  };
+  const strictNumber = v => {
+    if(typeof v==="number"&&Number.isFinite(v)) return v;
+    if(blank(v)) return null;
+    const s=String(v).trim().replace(/,/g,"");
+    if(!/^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?(?:\s*[^\d\s/\\]+)?$/.test(s)) return null;
+    const m=s.match(/^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/);
+    if(!m) return null;
+    const n=Number(m[0]);
+    return Number.isFinite(n)?n:null;
+  };
+  const slug = s => String(s??"").trim().toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_+|_+$/g,"")||"custom";
+  const quantile = (sorted,p) => {
+    if(!sorted.length)return null;
+    const pos=(sorted.length-1)*p,lo=Math.floor(pos),hi=Math.ceil(pos);
+    return lo===hi?sorted[lo]:sorted[lo]+(sorted[hi]-sorted[lo])*(pos-lo);
+  };
+  const median = a => quantile([...a].sort((x,y)=>x-y),.5);
+  const skewness = a => {
+    if(a.length<3)return null;const m=mean(a),s=sampleStd(a);if(!s)return 0;
+    const n=a.length;return n/((n-1)*(n-2))*sum(a.map(x=>((x-m)/s)**3));
+  };
+  const kurtosis = a => {
+    if(a.length<4)return null;const m=mean(a),s=sampleStd(a);if(!s)return 0;
+    const n=a.length;
+    return (n*(n+1)/((n-1)*(n-2)*(n-3))*sum(a.map(x=>((x-m)/s)**4)))
+      - (3*(n-1)**2/((n-2)*(n-3)));
+  };
+  const normName = s => String(s??"").trim().toLowerCase().replace(/[_\-／/\\()\[\]{}:：.。\s]+/g,"");
+  function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove("show"),1600)}
+  function download(name,text,type="application/json;charset=utf-8"){const b=new Blob([text],{type}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u)}
+
+  const D2={2:1.128,3:1.693,4:2.059,5:2.326,6:2.534,7:2.704,8:2.847,9:2.970,10:3.078};
+  const A2={2:1.880,3:1.023,4:.729,5:.577,6:.483,7:.419,8:.373,9:.337,10:.308};
+  const D3={2:0,3:0,4:0,5:0,6:0,7:.076,8:.136,9:.184,10:.223};
+  const D4={2:3.267,3:2.574,4:2.282,5:2.114,6:2.004,7:1.924,8:1.864,9:1.816,10:1.777};
+
+  const state={
+    fileName:"",sheetName:"",rows:[],headers:[],columns:[],
+    mapping:{lot:"",date:"",machine:""},
+    specs:{},activeProc:"data.overview",
+    params:{metric:"",group:"lot",x:"",y:"",metrics:[],question:"distribution",mu0:0},
+    std:null,lastResult:null,assumptionReport:null,auditTrail:[],procedureStatus:{}
+  };
+
+  /* ===== core/procedure-registry.js ===== */
+  const ENGINE_VERSION="0.6.0";
+  const CATEGORY_REGISTRY=[
+    {id:"data",step:"01",name:"資料準備",sub:"Import · Schema"},
+    {id:"advisor",step:"02",name:"統計顧問",sub:"Question · Assumptions"},
+    {id:"describe",step:"03",name:"描述與分布",sub:"Summary · Distribution"},
+    {id:"compare",step:"04",name:"群組比較",sub:"Tests · Post-hoc"},
+    {id:"relation",step:"05",name:"關聯與迴歸",sub:"Correlation · Model"},
+    {id:"spc",step:"06",name:"製程與 SPC",sub:"Capability · Control"},
+    {id:"multi",step:"07",name:"多變量分析",sub:"Multi-D"},
+    {id:"std",step:"08",name:"STD／LLM",sub:"Schema · Prompt"},
+    {id:"report",step:"09",name:"報告輸出",sub:"Decision Report"},
+    {id:"developer",step:"10",name:"Developer",sub:"Statistical Self-test"}
+  ];
+  const PROCEDURE_REGISTRY={};
+  function registerProcedure(id,category,order,label,description,roles,minimumRequirements,assumptions,outputs,recommendedCharts,execute,rule,ui={}){
+    PROCEDURE_REGISTRY[id]={
+      id,version:"1.0.0",category,order,label,title:label,description,desc:description,
+      roles,minimumRequirements,assumptions,outputs,recommendedCharts,
+      execute,validator:validateProcedure,rule,ui
+    };
+  }
+  const R={
+    response:{type:"numeric",required:true,param:"metric",label:"量測／反應變項"},
+    factor:{type:"categorical",required:true,param:"group",label:"分組因子"},
+    x:{type:"numeric",required:true,param:"x",label:"X 變項"},
+    y:{type:"numeric",required:true,param:"y",label:"Y 變項"},
+    pairedA:{type:"numeric",required:true,param:"x",label:"成對變項 A"},
+    pairedB:{type:"numeric",required:true,param:"y",label:"成對變項 B"},
+    metrics:{type:"numeric_multi",required:true,param:"metrics",label:"數值欄位"},
+    series:{type:"numeric",required:true,param:"metric",label:"依序量測變項"}
+  };
+  const noAssumptions=[];
+  registerProcedure("data.overview","data",10,"資料總覽","檢查列數、欄位型態、缺值率與程序可用性。",{}, {rows:1},noAssumptions,["column_profile"],[],executeOverview,"先確認資料品質，再選統計方法。",{controlMode:"none"});
+  registerProcedure("data.mapping","data",20,"STD 欄位與規格","設定 LOT、日期、機台、量測 STD ID、單位與規格。",{}, {rows:1},noAssumptions,["std_mapping"],[],executeMapping,"不猜測未知規格與單位。",{controlMode:"mapping"});
+
+  registerProcedure("advisor.question","advisor",10,"問題導向選擇","先描述欲回答的問題，再由規則引擎縮小方法範圍。",{}, {rows:1},noAssumptions,["candidate_procedures"],[],executeQuestionAdvisor,"方法建議不交由 LLM 計算。",{controlMode:"question"});
+  registerProcedure("advisor.assumptions","advisor",20,"假設檢查","檢查群組樣本數、中心、離散、Brown-Forsythe 與 Q-Q 診斷。",{response:R.response,factor:R.factor},{groups:2,observationsPerGroup:2},["independence","approximate_normality","equal_variance"],["assumption_report"],["residual_qq"],executeAssumptionAdvisor,"診斷結果是方法選擇依據，不是自動通過證明。");
+  registerProcedure("advisor.recommendation","advisor",30,"方法推薦","依群組數、變異、偏態與離群診斷推薦可執行程序。",{response:R.response,factor:R.factor},{groups:2,observationsPerGroup:2},["independence"],["recommended_procedure","alternatives","warnings"],[],executeMethodRecommendation,"推薦完全由 deterministic 規則引擎產生。");
+
+  registerProcedure("describe.summary","describe",10,"描述統計","輸出 n、缺值、平均、中位數、SD、四分位數、偏態與峰度。",{metrics:R.metrics},{observations:1},noAssumptions,["descriptive_statistics"],[],executeSummary,"描述統計不代表製程穩定或因果。");
+  registerProcedure("describe.histogram","describe",20,"直方圖","查看單一連續變數的分布形狀與集中程度。",{response:R.response},{observations:2},noAssumptions,["histogram"],["histogram"],executeHistogram,"分箱外觀會受 bins 影響。");
+  registerProcedure("describe.ecdf","describe",30,"經驗累積分布","呈現低於某數值的樣本比例，不依賴分箱。",{response:R.response},{observations:2},noAssumptions,["ecdf"],["ecdf"],executeECDF,"小樣本 ECDF 會呈現明顯階梯。");
+  registerProcedure("describe.qq","describe",40,"常態 Q-Q 圖","將樣本與理論常態分位數比較。",{response:R.response},{observations:3},["approximate_normality"],["qq_diagnostic"],["normal_qq"],executeQQ,"Q-Q 圖是診斷，不是常態性的單一裁決。");
+  registerProcedure("category.bar","describe",50,"類別次數圖","比較類別樣本數。",{factor:R.factor},{groups:1},noAssumptions,["category_counts"],["bar"],executeCategoryBar,"比較數量不代表品質優劣。");
+  registerProcedure("category.pareto","describe",60,"Pareto 圖","依類別次數排序並疊加累積百分比。",{factor:R.factor},{groups:1},noAssumptions,["category_counts","cumulative_percent"],["pareto"],executePareto,"類別必須代表缺陷或事件才有改善意義。");
+
+  registerProcedure("compare.box","compare",10,"群組箱型圖","比較群組中位數、IQR 與範圍。",{response:R.response,factor:R.factor},{groups:2,observationsPerGroup:1},noAssumptions,["group_summary"],["group_boxplot"],executeGroupedBox,"不同樣本數與混雜因素仍須揭露。");
+  registerProcedure("compare.mean_ci","compare",20,"平均值與 95% CI","比較群組平均值及估計不確定性。",{response:R.response,factor:R.factor},{groups:2,observationsPerGroup:2},["independence"],["group_means","confidence_intervals"],["mean_ci_plot"],executeMeanCI,"CI 不是規格界線。");
+  registerProcedure("compare.t.one_sample","compare",30,"One-sample t-test","比較單一樣本平均值與指定基準。",{response:R.response},{observations:2},["independence","approximate_normality"],["t_statistic","p_value","mean_difference","confidence_interval","cohens_d"],[],executeOneSampleT,"p-value 必須與差值、CI 及 effect size 一併判讀。",{parameters:["mu0"]});
+  registerProcedure("compare.t.pooled","compare",40,"Pooled two-sample t-test","在等變異假設下比較兩組平均值。",{response:R.response,factor:R.factor},{groups:2,exactGroups:2,observationsPerGroup:2},["independence","approximate_normality","equal_variance"],["t_statistic","p_value","mean_difference","confidence_interval","hedges_g"],[],executePooledT,"僅在兩組且變異可視為接近時使用。");
+  registerProcedure("compare.t.welch","compare",50,"Welch t-test","不假設兩組變異相等的平均值比較。",{response:R.response,factor:R.factor},{groups:2,exactGroups:2,observationsPerGroup:2},["independence","approximate_normality"],["t_statistic","p_value","mean_difference","confidence_interval","hedges_g"],[],executeWelchT,"顯著不等於因果。");
+  registerProcedure("compare.t.paired","compare",60,"Paired t-test","以列對列配對差值檢定平均差。",{response:R.pairedA,paired_response:R.pairedB},{pairedObservations:2},["paired_design","approximate_normality_of_differences"],["t_statistic","p_value","mean_difference","confidence_interval","cohens_dz"],[],executePairedT,"只有真實成對設計才可使用。");
+  registerProcedure("compare.mann_whitney","compare",70,"Mann-Whitney U","以秩次比較兩組分布位置。",{response:R.response,factor:R.factor},{groups:2,exactGroups:2,observationsPerGroup:2},["independence","similar_distribution_shape"],["u_statistic","p_value","rank_biserial"],[],executeMannWhitney,"若分布形狀不同，不應簡化為中位數差。");
+  registerProcedure("compare.wilcoxon_signed_rank","compare",80,"Wilcoxon signed-rank","以成對差值秩次檢查位置差。",{response:R.pairedA,paired_response:R.pairedB},{pairedObservations:3},["paired_design","symmetric_difference_distribution"],["w_statistic","p_value","rank_biserial"],[],executeWilcoxon,"零差值會被明確排除並記錄。");
+  registerProcedure("compare.anova.one_way","compare",90,"One-way ANOVA","比較三組以上平均值並輸出 F、p-value 與 eta squared。",{response:R.response,factor:R.factor},{groups:3,observationsPerGroup:2},["independence","approximate_normality","equal_variance"],["anova_table","f_statistic","p_value","eta_squared"],["group_boxplot","mean_ci_plot","residual_qq"],executeOneWayAnova,"顯著後必須進行 Tukey HSD；顯著不等於因果。");
+  registerProcedure("compare.anova.welch","compare",100,"Welch ANOVA","以 Welch 修正比較多組平均值。",{response:R.response,factor:R.factor},{groups:3,observationsPerGroup:2},["independence","approximate_normality"],["welch_f","p_value","eta_squared"],["group_boxplot","residual_qq"],executeWelchAnova,"變異不同時優先於傳統 ANOVA。");
+  registerProcedure("compare.kruskal_wallis","compare",110,"Kruskal-Wallis","以秩次比較多組分布位置。",{response:R.response,factor:R.factor},{groups:3,observationsPerGroup:1},["independence","ordinal_or_continuous"],["h_statistic","p_value","epsilon_squared"],["group_boxplot"],executeKruskal,"顯著後必須進行 Dunn 多重比較。");
+  registerProcedure("compare.posthoc.tukey","compare",120,"Tukey HSD","ANOVA 後進行全組別成對比較。",{response:R.response,factor:R.factor},{groups:3,observationsPerGroup:2},["independence","approximate_normality","equal_variance"],["pairwise_comparisons","adjusted_p_values","confidence_intervals"],["difference_ci_plot"],executeTukey,"使用 family-wise 調整；不得只報整體 ANOVA。");
+  registerProcedure("compare.posthoc.games_howell","compare",130,"Games-Howell","Welch ANOVA 後進行不等變異成對比較。",{response:R.response,factor:R.factor},{groups:3,observationsPerGroup:2},["independence","approximate_normality"],["pairwise_comparisons","adjusted_p_values","confidence_intervals"],["difference_ci_plot"],executeGamesHowell,"適用樣本數與變異不同的多組比較。");
+  registerProcedure("compare.posthoc.dunn","compare",140,"Dunn + Bonferroni","Kruskal-Wallis 後進行秩次成對比較。",{response:R.response,factor:R.factor},{groups:3,observationsPerGroup:1},["independence","ordinal_or_continuous"],["pairwise_comparisons","bonferroni_p_values"],["difference_ci_plot"],executeDunn,"多重比較必須調整 p-value。");
+
+  registerProcedure("relation.scatter","relation",10,"散佈圖","探索兩個連續變數的型態、群聚與離群值。",{x:R.x,y:R.y},{pairedObservations:3},noAssumptions,["paired_points"],["scatter"],executeScatter,"關聯不等於因果。");
+  registerProcedure("relation.correlation","relation",20,"Pearson／Spearman","同時計算線性相關與秩相關。",{x:R.x,y:R.y},{pairedObservations:3},["independence","linearity_for_pearson"],["pearson","spearman","sample_size"],["scatter"],executeCorrelation,"Pearson 對離群值敏感。");
+  registerProcedure("relation.regression","relation",30,"簡單線性迴歸","估計截距、斜率、R squared、CI 與診斷。",{x:R.x,y:R.y},{pairedObservations:5},["linearity","independence","homoscedasticity","normal_residuals"],["coefficients","p_value","confidence_interval","r_squared"],["scatter","residual_fitted","residual_qq"],executeRegression,"模型不證明因果，且不可任意外推。");
+  registerProcedure("relation.residual","relation",40,"殘差診斷","檢查 residual vs fitted、Q-Q、異質變異與高影響點。",{x:R.x,y:R.y},{pairedObservations:5},["linearity","homoscedasticity","normal_residuals"],["residual_diagnostics"],["residual_fitted","residual_qq"],executeResidual,"殘差型態異常時不應只報 R squared。");
+
+  registerProcedure("spc.capability","spc",10,"製程能力","以規格、組內與整體變異計算 Cpk／Ppk。",{response:R.response},{observations:2},["process_stability","valid_specification"],["cpk","ppk","within_sigma","overall_sigma"],["capability_histogram"],executeCapability,"不自動補規格；能力分析前顯示穩定性狀態。");
+  registerProcedure("spc.imr","spc",20,"I-MR 管制圖","檢查個別值、移動全距與 Nelson Rules。",{series:R.series},{observations:3},["time_order"],["control_limits","rule_violations"],["imr"],executeIMR,"資料順序必須代表實際時間或生產順序。");
+  registerProcedure("spc.xbar_r","spc",30,"Xbar-R 管制圖","以合理子組檢查中心、組內全距與 Nelson Rules。",{response:R.response},{groups:3,subgroup:true},["rational_subgroup","time_order"],["control_limits","rule_violations"],["xbar_r"],executeXbarR,"子組大小需一致且 n=2 至 10。");
+
+  registerProcedure("multi.heatmap","multi",10,"相關矩陣","比較多個數值欄位的 Pearson 相關。",{metrics:R.metrics},{numericColumns:2},noAssumptions,["correlation_matrix"],["heatmap"],executeHeatmap,"大量相關需注意多重比較。");
+  registerProcedure("multi.parallel","multi",20,"平行座標","呈現多個量測欄位的樣本輪廓。",{metrics:R.metrics},{numericColumns:3},noAssumptions,["parallel_coordinates"],["parallel_coordinates"],executeParallel,"軸太多會降低可讀性。");
+  registerProcedure("multi.pca","multi",30,"PCA 二維投影","標準化後以 Jacobi 特徵分解探索多變量結構。",{metrics:R.metrics},{numericColumns:3,observations:5},["linear_structure"],["eigenvalues","explained_variance","scores"],["pca_scores"],executePCA,"主成分不一定有直接製程語意。");
+
+  registerProcedure("std.schema","std",10,"STD Schema","查看 USER 欄位到標準資料的映射。",{}, {rows:1},noAssumptions,["std_schema"],[],executeSchema,"分析核心只依賴 STD，不依賴 Excel 命名。",{controlMode:"none"});
+  registerProcedure("std.prompt","std",20,"LLM 翻譯提示","產生限制式 Prompt，LLM 只做映射、計畫與文字轉譯。",{}, {},noAssumptions,["llm_prompt"],[],executePrompt,"LLM 不得計算統計數值或捏造規格。",{controlMode:"none",allowWithoutData:true});
+  registerProcedure("report.supervisor","report",10,"主管摘要","整理已驗證結果、限制與後續建議。",{response:R.response},{observations:1},noAssumptions,["supervisor_report"],[],executeSupervisorReport,"不可把相關或群組差異寫成因果。");
+  registerProcedure("developer.self_test","developer",10,"Statistical Self-test","以固定輸入與預期值驗證統計核心。",{}, {},noAssumptions,["test_report"],[],executeSelfTest,"測試必須比較數值誤差，不只檢查是否執行。",{controlMode:"none",allowWithoutData:true});
+
+  const procedures=PROCEDURE_REGISTRY;
+  const categories=CATEGORY_REGISTRY.map(category=>({
+    ...category,
+    items:Object.values(PROCEDURE_REGISTRY)
+      .filter(procedure=>procedure.category===category.id)
+      .sort((a,b)=>a.order-b.order)
+      .map(procedure=>[procedure.id,procedure.label,procedure.recommendedCharts.join(" · ")||procedure.outputs[0]||"Procedure"])
+  }));
+
+  function buildNav(){
+    $("nav").innerHTML=categories.map((c,ci)=>`
+      <div class="nav-group ${c.id===PROCEDURE_REGISTRY[state.activeProc]?.category?'open':''}" data-cat="${c.id}">
+        <button class="nav-title" type="button">
+          <span class="nav-step">${c.step}</span>
+          <span><b>${c.name}</b><small>${c.sub}</small></span><i>${c.id===PROCEDURE_REGISTRY[state.activeProc]?.category?'⌄':'›'}</i>
+        </button>
+        <div class="nav-sub">${c.items.map(([id,n,s])=>`
+          <button class="nav-item ${id===state.activeProc?'active':''}" data-proc="${id}" type="button">
+            <span>${n}</span><small>${s}</small>
+          </button>`).join("")}</div>
+      </div>`).join("");
+    document.querySelectorAll(".nav-title").forEach(b=>b.addEventListener("click",()=>{
+      const g=b.closest(".nav-group"),open=g.classList.contains("open");
+      document.querySelectorAll(".nav-group").forEach(x=>x.classList.remove("open"));
+      document.querySelectorAll(".nav-title i").forEach(x=>x.textContent="›");
+      if(!open){g.classList.add("open");b.querySelector("i").textContent="⌄";}
+    }));
+    document.querySelectorAll(".nav-item").forEach(b=>b.addEventListener("click",()=>{
+      state.activeProc=b.dataset.proc;buildNav();renderProcedure();
+    }));
+  }
+
+  function parseCSV(text){
+    const out=[];let row=[],field="",quoted=false;
+    for(let i=0;i<text.length;i++){
+      const c=text[i],n=text[i+1];
+      if(quoted){if(c==='"'&&n==='"'){field+='"';i++;}else if(c==='"')quoted=false;else field+=c;}
+      else if(c==='"')quoted=true;
+      else if(c===','){row.push(field);field="";}
+      else if(c==='\n'){row.push(field.replace(/\r$/,""));out.push(row);row=[];field="";}
+      else field+=c;
+    }
+    row.push(field.replace(/\r$/,""));if(row.some(x=>x!==""))out.push(row);return out;
+  }
+  function detectHeader(rows){
+    let best=0,bestScore=-1;
+    for(let i=0;i<Math.min(rows.length,40);i++){
+      const r=rows[i]||[],filled=r.filter(v=>!blank(v));
+      const strings=filled.filter(v=>toNumber(v)==null).length;
+      const score=filled.length*2+strings;
+      if(filled.length>=2&&score>bestScore){bestScore=score;best=i;}
+    }
+    return best;
+  }
+  function makeHeaders(row){
+    const seen={};
+    return row.map((v,i)=>{let h=String(v??"").trim()||`Column_${i+1}`;seen[h]=(seen[h]||0)+1;return seen[h]>1?`${h}_${seen[h]}`:h});
+  }
+  function rowsToObjects(rows,headerIndex){
+    const headers=makeHeaders(rows[headerIndex]||[]);
+    const data=[];
+    for(let i=headerIndex+1;i<rows.length;i++){
+      const r=rows[i]||[];if(!r.some(v=>!blank(v)))continue;
+      const o={};headers.forEach((h,j)=>o[h]=r[j]??"");data.push(o);
+    }
+    return {headers,data};
+  }
+  function classifyColumns(){
+    state.columns=state.headers.map(h=>{
+      const vals=state.rows.map(r=>r[h]);
+      const nonblank=vals.filter(v=>!blank(v));
+      const nums=nonblank.map(strictNumber).filter(v=>v!=null);
+      const numericRatio=nonblank.length?nums.length/nonblank.length:0;
+      const unique=new Set(nonblank.map(String)).size;
+      const type=numericRatio>=.8?"numeric":unique<=Math.max(20,Math.sqrt(nonblank.length)*2)?"categorical":"text";
+      return {name:h,type,missing:vals.length-nonblank.length,numericRatio,unique};
+    });
+    const guess=(terms)=>state.headers.find(h=>terms.some(t=>normName(h).includes(normName(t))))||"";
+    state.mapping.lot=state.mapping.lot||guess(["LOT","批號","批次"]);
+    state.mapping.date=state.mapping.date||guess(["日期","時間","date","datetime"]);
+    state.mapping.machine=state.mapping.machine||guess(["機台","設備","machine"]);
+
+    state.columns.forEach(c=>{
+      if(c.name===state.mapping.date)c.type="date";
+      else if(c.name===state.mapping.lot||c.name===state.mapping.machine)c.type="categorical";
+      else if(/sample|sampleid|樣本|樣品|序號|編號/i.test(c.name))c.type="identifier";
+    });
+
+    state.columns.filter(c=>c.type==="numeric").forEach(c=>{
+      if(!state.specs[c.name])state.specs[c.name]={stdId:`measurement.${slug(c.name)}`,label:c.name,unit:"",lsl:null,usl:null,target:null};
+    });
+    const nums=numericColumns();
+    if(!state.params.metric||!nums.some(c=>c.name===state.params.metric))state.params.metric=nums[0]?.name||"";
+    if(!state.params.x||!nums.some(c=>c.name===state.params.x))state.params.x=nums[0]?.name||"";
+    if(!state.params.y||!nums.some(c=>c.name===state.params.y))state.params.y=nums[1]?.name||nums[0]?.name||"";
+    state.params.metrics=state.params.metrics.filter(x=>nums.some(c=>c.name===x));
+    if(!state.params.metrics.length)state.params.metrics=nums.slice(0,6).map(c=>c.name);
+  }
+  function numericColumns(){return state.columns.filter(c=>c.type==="numeric")}
+  function categoricalColumns(){return state.columns.filter(c=>c.type!=="numeric")}
+  function fieldName(kind){
+    if(kind==="lot")return state.mapping.lot;
+    if(kind==="machine")return state.mapping.machine;
+    if(kind==="date")return state.mapping.date;
+    return kind;
+  }
+  function groupValues(kind){
+    const col=fieldName(kind);if(!col)return [];
+    return state.rows.map(r=>String(r[col]??"").trim()).filter(Boolean);
+  }
+  function values(col){return state.rows.map(r=>toNumber(r[col])).filter(v=>v!=null)}
+  function paired(xc,yc){
+    return state.rows.map(r=>({x:toNumber(r[xc]),y:toNumber(r[yc]),lot:state.mapping.lot?String(r[state.mapping.lot]??""):"",machine:state.mapping.machine?String(r[state.mapping.machine]??""):""}))
+      .filter(p=>p.x!=null&&p.y!=null);
+  }
+  function grouped(metric,groupKind){
+    const col=fieldName(groupKind),m=new Map();
+    if(!col)return m;
+    state.rows.forEach(r=>{const g=String(r[col]??"").trim(),v=toNumber(r[metric]);if(!g||v==null)return;if(!m.has(g))m.set(g,[]);m.get(g).push(v)});
+    return m;
+  }
+
+  function buildStd(){
+    const measurements=numericColumns().map(c=>{
+      const s=state.specs[c.name]||{};
+      return {source_label:c.name,std_id:s.stdId||`measurement.${slug(c.name)}`,display_label:s.label||c.name,
+        data_type:"number",canonical_unit:s.unit||null,specification:{lsl:s.lsl,usl:s.usl,target:s.target}};
+    });
+    const records=state.rows.map((r,i)=>({
+      "production.lot_id":state.mapping.lot?String(r[state.mapping.lot]??"").trim()||null:null,
+      "production.machine_id":state.mapping.machine?String(r[state.mapping.machine]??"").trim()||null:null,
+      "sample.measured_at":state.mapping.date?String(r[state.mapping.date]??"").trim()||null:null,
+      "_source_row":i+2,
+      measurements:Object.fromEntries(measurements.map(m=>[m.std_id,toNumber(r[m.source_label])]))
+    }));
+    state.std={schema_version:"std.data.v1",profile:"std.analysis.v1",
+      source:{file_name:state.fileName||"memory",sheet_name:state.sheetName||null,row_count:state.rows.length},
+      translator:{source_to_std:{
+        "production.lot_id":state.mapping.lot||null,
+        "production.machine_id":state.mapping.machine||null,
+        "sample.measured_at":state.mapping.date||null,
+        ...Object.fromEntries(measurements.map(m=>[m.std_id,m.source_label]))
+      }},
+      measurements,records};
+  }
+
+  function renderStatus(){
+    $("rowBadge").textContent=`${state.rows.length} rows`;
+    $("numBadge").textContent=`${numericColumns().length} numeric`;
+    $("dataStatus").className=`status ${state.rows.length?"good":""}`;
+    $("dataStatus").innerHTML=state.rows.length
+      ? `<b>${esc(state.fileName||"memory")}</b><br>${state.rows.length} 筆、${state.headers.length} 欄；數值欄 ${numericColumns().length}。`
+      :"尚未載入資料。";
+  }
+
+  async function handleFile(file){
+    if(!file)return;
+    try{
+      state.fileName=file.name;
+      const ext=file.name.split(".").pop().toLowerCase();
+      let matrix,sheetName="CSV";
+      if(ext==="csv")matrix=parseCSV(await file.text());
+      else{
+        if(!window.XLSX)throw new Error("SheetJS 未載入；可改用 CSV。");
+        const wb=XLSX.read(await file.arrayBuffer(),{type:"array",raw:false});
+        sheetName=wb.SheetNames[0];
+        matrix=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,defval:"",raw:false});
+      }
+      const h=detectHeader(matrix),parsed=rowsToObjects(matrix,h);
+      state.sheetName=sheetName;state.headers=parsed.headers;state.rows=parsed.data;
+      state.mapping={lot:"",date:"",machine:""};state.specs={};state.params={metric:"",group:"lot",x:"",y:"",metrics:[],question:"distribution",mu0:0};state.auditTrail=[];state.assumptionReport=null;
+      classifyColumns();buildStd();renderStatus();renderProcedure();toast("資料已載入");
+    }catch(e){$("dataStatus").className="status warn";$("dataStatus").textContent=`讀取失敗：${e.message}`}
+  }
+
+  function loadDemo(){
+    const rows=[];
+    const machines=["7261","7138","119","229"];
+    for(let lot=1;lot<=12;lot++){
+      for(let j=1;j<=3;j++){
+        const shift=(lot-6.5)*1.3+(lot>=9?6:0);
+        const push=72+shift+(j-2)*3.1+Math.sin(lot*1.7+j)*2.2;
+        const pull=10.5+(lot>=10?.75:0)+(j-2)*.22+Math.sin(lot+j)*.15;
+        const thick=11.2+(lot%4)*.35+(j-2)*.25+Math.cos(lot+j)*.12;
+        rows.push({
+          日期:`2026/${String(3+Math.floor((lot-1)/5)).padStart(2,"0")}/${String(10+lot).padStart(2,"0")}`,
+          "LOT NO.":`LOT-${String(lot).padStart(2,"0")}`,
+          機台:machines[(lot-1)%machines.length],
+          樣本:`${j}`,
+          推力:Number(push.toFixed(3)),
+          拉力:Number(pull.toFixed(3)),
+          厚度:Number(thick.toFixed(3)),
+          缺陷類別:lot%5===0?"偏移":lot%4===0?"厚度":lot%3===0?"拉力":"無"
+        });
+      }
+    }
+    state.fileName="STD_demo.csv";state.sheetName="Demo";state.rows=rows;state.headers=Object.keys(rows[0]);
+    state.mapping={lot:"LOT NO.",date:"日期",machine:"機台"};state.specs={};state.params={metric:"推力",group:"lot",x:"拉力",y:"推力",metrics:["推力","拉力","厚度"]};
+    classifyColumns();
+    Object.assign(state.specs["推力"],{stdId:"measurement.push_force",label:"推力",unit:"g",lsl:25});
+    Object.assign(state.specs["拉力"],{stdId:"measurement.pull_force",label:"拉力",unit:"g",lsl:6});
+    Object.assign(state.specs["厚度"],{stdId:"measurement.thickness",label:"厚度",unit:"μm",lsl:8,usl:16});
+    buildStd();renderStatus();renderProcedure();toast("已載入示範資料");
+  }
+
+  function selectOptions(cols,selected,blankLabel=null){
+    const arr=blankLabel!==null?[`<option value="">${blankLabel}</option>`]:[];
+    cols.forEach(c=>arr.push(`<option value="${esc(c.name)}" ${c.name===selected?"selected":""}>${esc(c.name)}</option>`));
+    return arr.join("");
+  }
+  function categoricalOptions(selected){
+    const opts=[["lot","LOT（STD）"],["machine","機台（STD）"],...categoricalColumns().map(c=>[c.name,c.name])];
+    return opts.map(([v,l])=>`<option value="${esc(v)}" ${v===selected?"selected":""}>${esc(l)}</option>`).join("");
+  }
+  function baseControls(type){
+    const nums=numericColumns();
+    if(type==="metric")return `<div class="field"><label>量測變項</label><select class="select" id="metricSel">${selectOptions(nums,state.params.metric)}</select></div>`;
+    if(type==="group")return `<div class="field"><label>分組欄位</label><select class="select" id="groupSel">${categoricalOptions(state.params.group)}</select></div>`;
+    if(type==="xy")return `<div class="field"><label>X 變項</label><select class="select" id="xSel">${selectOptions(nums,state.params.x)}</select></div>
+      <div class="field"><label>Y 變項</label><select class="select" id="ySel">${selectOptions(nums,state.params.y)}</select></div>`;
+    return "";
+  }
+
+  /* ===== core/validator.js + ui/inspector.js ===== */
+  function roleSummary(proc){
+    const roles=Object.values(proc.roles||{});
+    return roles.length?roles.map(role=>`${role.label}${role.required?"*":""}`).join(" + "):"不需指定資料角色";
+  }
+  function resolveRoleColumn(role){
+    if(role.type==="categorical")return fieldName(state.params[role.param]);
+    return state.params[role.param]||"";
+  }
+  function selectedGroups(){
+    return [...grouped(state.params.metric,state.params.group)].filter(([,items])=>items.length);
+  }
+  function validateProcedure(proc){
+    const errors=[],warnings=[],details=[];
+    if(!state.rows.length&&!proc.ui?.allowWithoutData)errors.push("尚未載入資料。");
+    if(errors.length)return {status:"Rejected",errors,warnings,details};
+    for(const [name,role] of Object.entries(proc.roles||{})){
+      if(role.type==="numeric"){
+        const column=resolveRoleColumn(role);
+        if(role.required&&!column)errors.push(`${role.label}尚未指定。`);
+        else if(column){
+          const valid=values(column).length,missing=state.rows.length-valid;
+          details.push({role:name,column,valid,missing});
+          if(valid<(proc.minimumRequirements.observations||1))errors.push(`${role.label}有效筆數不足。`);
+          if(missing)warnings.push(`${role.label}有 ${missing} 筆缺值／非數值，將記錄於 Audit Trail。`);
+        }
+      }else if(role.type==="categorical"){
+        const column=resolveRoleColumn(role);
+        if(role.required&&!column)errors.push(`${role.label}尚未指定。`);
+        else if(column){
+          const groups=new Set(state.rows.map(row=>String(row[column]??"").trim()).filter(Boolean));
+          details.push({role:name,column,groups:groups.size});
+          if(groups.size<(proc.minimumRequirements.groups||1))errors.push(`${role.label}群組數不足。`);
+        }
+      }else if(role.type==="numeric_multi"){
+        const selected=(state.params[role.param]||[]).filter(column=>state.headers.includes(column));
+        const need=proc.minimumRequirements.numericColumns||1;
+        if(selected.length<need)errors.push(`${role.label}至少需要 ${need} 欄。`);
+        details.push({role:name,columns:selected});
+      }
+    }
+    const minimum=proc.minimumRequirements||{};
+    if(minimum.pairedObservations){
+      const pairs=paired(state.params.x,state.params.y);
+      if(state.params.x===state.params.y)errors.push("成對或 XY 程序需要兩個不同欄位。");
+      if(pairs.length<minimum.pairedObservations)errors.push(`完整成對資料至少需要 ${minimum.pairedObservations} 筆。`);
+      if(pairs.length<state.rows.length)warnings.push(`${state.rows.length-pairs.length} 列因成對欄位缺值而排除。`);
+    }
+    if(minimum.groups||minimum.exactGroups||minimum.observationsPerGroup){
+      const groups=selectedGroups();
+      if(minimum.groups&&groups.length<minimum.groups)errors.push(`至少需要 ${minimum.groups} 個有效群組。`);
+      if(minimum.exactGroups&&groups.length!==minimum.exactGroups)errors.push(`此程序僅接受 ${minimum.exactGroups} 個有效群組。`);
+      if(minimum.observationsPerGroup){
+        const small=groups.filter(([,items])=>items.length<minimum.observationsPerGroup);
+        if(small.length)errors.push(`群組 ${small.map(([name])=>name).join("、")} 的有效樣本不足 ${minimum.observationsPerGroup}。`);
+        const limited=groups.filter(([,items])=>items.length<5);
+        if(limited.length)warnings.push(`小樣本群組：${limited.map(([name,items])=>`${name}(n=${items.length})`).join("、")}。`);
+      }
+    }
+    if(proc.id==="spc.capability"){
+      const spec=state.specs[state.params.metric]||{};
+      if(spec.lsl==null&&spec.usl==null)errors.push("能力分析需要已確認的 LSL 或 USL；系統不自動補規格。");
+      if(!state.mapping.lot)warnings.push("未設定合理子組，Cpk 組內變異可能無法估計。");
+    }
+    if(proc.id==="spc.xbar_r"){
+      if(!state.mapping.lot)errors.push("Xbar-R 需要 LOT 子組欄位。");
+      else{
+        const groups=[...grouped(state.params.metric,"lot")],sizes=groups.map(([,items])=>items.length);
+        const consistent=new Set(sizes).size===1,size=sizes[0];
+        if(groups.length<3)errors.push("Xbar-R 至少需要 3 個子組。");
+        if(!consistent)errors.push(`子組大小不一致：${sizes.join("、")}。`);
+        if(!(size>=2&&size<=10))errors.push("子組大小必須介於 2 至 10。");
+      }
+    }
+    if(proc.id==="compare.t.one_sample"&&!Number.isFinite(Number(state.params.mu0)))errors.push("請輸入有限的基準平均值。");
+    return {status:errors.length?"Rejected":warnings.length?"Warning":"Ready",errors,warnings,details};
+  }
+  function collectExcludedRows(proc){
+    const excluded=[];
+    const numericRoles=Object.values(proc.roles||{}).filter(role=>role.type==="numeric");
+    state.rows.forEach((row,index)=>{
+      const missing=numericRoles.filter(role=>toNumber(row[resolveRoleColumn(role)])==null).map(role=>role.label);
+      if(missing.length)excluded.push({row:index+2,reason:`缺少有效數值：${missing.join("、")}`});
+    });
+    return excluded;
+  }
+  function statusClass(status){
+    return status==="Completed"||status==="Ready"?"good":status==="Warning"?"warn":status==="Rejected"?"bad":"";
+  }
+  function roleControl(name,role){
+    if(role.type==="numeric"){
+      return `<div class="field"><label>${esc(role.label)}</label><select class="select" data-role-param="${esc(role.param)}">${selectOptions(numericColumns(),state.params[role.param])}</select></div>`;
+    }
+    if(role.type==="categorical"){
+      return `<div class="field"><label>${esc(role.label)}</label><select class="select" data-role-param="${esc(role.param)}">${categoricalOptions(state.params[role.param])}</select></div>`;
+    }
+    if(role.type==="numeric_multi"){
+      return `<div class="field"><label>${esc(role.label)}</label><div class="role-list">${numericColumns().map(column=>`
+        <label class="role check-role"><input type="checkbox" data-metric-check="${esc(column.name)}" ${state.params.metrics.includes(column.name)?"checked":""}><span>${esc(column.name)}</span></label>`).join("")}</div></div>`;
+    }
+    return `<div class="result">不支援的資料角色：${esc(name)}</div>`;
+  }
+  function mappingControls(){
+    return `<div class="field"><label>production.lot_id</label><select class="select" id="lotMap">${selectOptions(state.columns,state.mapping.lot,"— 未指定 —")}</select></div>
+      <div class="field"><label>sample.measured_at</label><select class="select" id="dateMap">${selectOptions(state.columns,state.mapping.date,"— 未指定 —")}</select></div>
+      <div class="field"><label>production.machine_id</label><select class="select" id="machineMap">${selectOptions(state.columns,state.mapping.machine,"— 未指定 —")}</select></div>
+      <div class="field"><label>量測規格</label><select class="select" id="specMetric">${selectOptions(numericColumns(),state.params.metric)}</select></div>
+      <div id="specEditor"></div>`;
+  }
+  function parameterControls(proc){
+    const parts=[];
+    if(proc.ui?.controlMode==="question"){
+      const options=[
+        ["distribution","看單一連續變數的分布"],["two_groups","比較兩組數值"],["three_groups","比較三組以上"],
+        ["paired","比較成對資料"],["relationship","找兩個連續變數的關係"],["stability","檢查時間序列穩定性"],
+        ["capability","評估製程能力"],["multivariate","探索多變量結構"]
+      ];
+      parts.push(`<div class="field"><label>分析問題</label><select class="select" id="questionSel">${options.map(([value,label])=>`<option value="${value}" ${value===state.params.question?"selected":""}>${label}</option>`).join("")}</select></div>`);
+    }
+    if((proc.ui?.parameters||[]).includes("mu0")){
+      parts.push(`<div class="field"><label>基準平均值 mu0</label><input class="input" id="mu0Input" type="number" step="any" value="${esc(state.params.mu0)}"></div>`);
+    }
+    return parts.join("")||`<div class="role"><span>此程序沒有額外參數。</span></div>`;
+  }
+  function renderControls(){
+    const proc=PROCEDURE_REGISTRY[state.activeProc]||PROCEDURE_REGISTRY["data.overview"];
+    if(proc.ui?.controlMode==="mapping")$("controls").innerHTML=mappingControls();
+    else{
+      const roles=Object.entries(proc.roles||{});
+      $("controls").innerHTML=roles.length?roles.map(([name,role])=>roleControl(name,role)).join(""):`<div class="role"><span>此程序不需要指定變項。</span></div>`;
+    }
+    $("parameterControls").innerHTML=parameterControls(proc);
+    $("assumptionPanel").innerHTML=(proc.assumptions||[]).length
+      ?proc.assumptions.map(item=>`<div class="assumption-item"><span class="dot"></span><span>${esc(item.replaceAll("_"," "))}</span></div>`).join("")
+      :`<div class="role"><span>無額外統計假設。</span></div>`;
+    const validation=proc.validator(proc);
+    $("executionPanel").innerHTML=`<div class="execution-row"><span class="status-chip ${statusClass(validation.status)}">${validation.status}</span><button class="btn primary small" id="runProcedureBtn" ${validation.status==="Rejected"?"disabled":""}>執行程序</button></div>
+      <div class="validation-list">${[...validation.errors,...validation.warnings].map(item=>`<div>${esc(item)}</div>`).join("")||"<div>資料角色與最低需求已通過。</div>"}</div>`;
+    bindControls();
+    if(proc.ui?.controlMode==="mapping")renderSpecEditor();
+  }
+  function bindControls(){
+    document.querySelectorAll("[data-role-param]").forEach(control=>control.addEventListener("change",event=>{
+      state.params[control.dataset.roleParam]=event.target.value;
+      renderProcedure();
+    }));
+    $("lotMap")?.addEventListener("change",event=>{state.mapping.lot=event.target.value;buildStd();renderProcedure()});
+    $("dateMap")?.addEventListener("change",event=>{state.mapping.date=event.target.value;buildStd();renderProcedure()});
+    $("machineMap")?.addEventListener("change",event=>{state.mapping.machine=event.target.value;buildStd();renderProcedure()});
+    $("specMetric")?.addEventListener("change",event=>{state.params.metric=event.target.value;renderSpecEditor()});
+    document.querySelectorAll("[data-metric-check]").forEach(control=>control.addEventListener("change",()=>{
+      state.params.metrics=[...document.querySelectorAll("[data-metric-check]:checked")].map(item=>item.dataset.metricCheck);
+      renderProcedure();
+    }));
+    $("questionSel")?.addEventListener("change",event=>{state.params.question=event.target.value;renderProcedure()});
+    $("mu0Input")?.addEventListener("change",event=>{state.params.mu0=Number(event.target.value);renderProcedure()});
+    $("runProcedureBtn")?.addEventListener("click",()=>renderProcedure(true));
+  }
+
+  function renderSpecEditor(){
+    const col=state.params.metric||numericColumns()[0]?.name;if(!col){$("specEditor").innerHTML="";return}
+    state.params.metric=col;const s=state.specs[col]||{};
+    $("specEditor").innerHTML=`<div class="field"><label>STD ID</label><input class="input" id="stdIdInput" value="${esc(s.stdId||`measurement.${slug(col)}`)}"></div>
+      <div class="field"><label>USER 顯示名稱</label><input class="input" id="labelInput" value="${esc(s.label||col)}"></div>
+      <div class="field"><label>Canonical Unit</label><input class="input" id="unitInput" value="${esc(s.unit||"")}"></div>
+      <div class="row"><div class="field"><label>LSL</label><input class="input" id="lslInput" type="number" step="any" value="${s.lsl??""}"></div>
+      <div class="field"><label>USL</label><input class="input" id="uslInput" type="number" step="any" value="${s.usl??""}"></div></div>
+      <div class="field"><label>Target</label><input class="input" id="targetInput" type="number" step="any" value="${s.target??""}"></div>
+      <button class="btn primary small" id="saveSpecBtn" style="width:100%">儲存並編譯 STD</button>`;
+    $("saveSpecBtn").addEventListener("click",()=>{
+      state.specs[col]={stdId:$("stdIdInput").value.trim()||`measurement.${slug(col)}`,label:$("labelInput").value.trim()||col,
+        unit:$("unitInput").value.trim(),lsl:toNumber($("lslInput").value),usl:toNumber($("uslInput").value),target:toNumber($("targetInput").value)};
+      buildStd();renderProcedure();toast("規格已更新");
+    });
+  }
+
+  function setupCanvas(){
+    $("stageShell").innerHTML=`<canvas class="canvas" id="chartCanvas"></canvas>`;
+    const cv=$("chartCanvas"),r=cv.getBoundingClientRect(),dpr=devicePixelRatio||1;
+    cv.width=Math.max(300,r.width)*dpr;cv.height=520*dpr;
+    const ctx=cv.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);
+    return {cv,ctx,w:Math.max(300,r.width),h:520};
+  }
+  function emptyStage(msg){$("stageShell").innerHTML=`<div class="message">${esc(msg)}</div>`}
+  function tableStage(headers,rows){
+    $("stageShell").innerHTML=`<div class="table-stage"><div class="tablewrap"><table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map(r=>`<tr>${r.map(v=>`<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</tbody></table></div></div>`;
+  }
+  function bounds(vals){
+    let lo=Math.min(...vals),hi=Math.max(...vals);if(!Number.isFinite(lo)||!Number.isFinite(hi))return [0,1];
+    if(lo===hi){lo-=1;hi+=1}const p=(hi-lo)*.08;return [lo-p,hi+p];
+  }
+  function axes(ctx,w,h,m,xlo,xhi,ylo,yhi,xlab,ylab){
+    ctx.fillStyle="#060b14";ctx.fillRect(0,0,w,h);
+    ctx.font="10px sans-serif";ctx.textAlign="right";
+    for(let i=0;i<=5;i++){const y=m.t+(h-m.t-m.b)*i/5,v=yhi-(yhi-ylo)*i/5;
+      ctx.strokeStyle="#24344c";ctx.beginPath();ctx.moveTo(m.l,y);ctx.lineTo(w-m.r,y);ctx.stroke();
+      ctx.fillStyle="#8fa4c1";ctx.fillText(fmt(v,2),m.l-7,y+3)}
+    ctx.textAlign="center";
+    for(let i=0;i<=5;i++){const x=m.l+(w-m.l-m.r)*i/5,v=xlo+(xhi-xlo)*i/5;
+      ctx.fillStyle="#8fa4c1";ctx.fillText(fmt(v,2),x,h-m.b+18)}
+    ctx.strokeStyle="#455773";ctx.beginPath();ctx.moveTo(m.l,m.t);ctx.lineTo(m.l,h-m.b);ctx.lineTo(w-m.r,h-m.b);ctx.stroke();
+    ctx.fillStyle="#d8e5f7";ctx.font="12px sans-serif";ctx.fillText(xlab||"",w/2,h-10);
+    ctx.save();ctx.translate(16,h/2);ctx.rotate(-Math.PI/2);ctx.fillText(ylab||"",0,0);ctx.restore();
+  }
+  const palette=["#7c9cff","#69d8c0","#ffc267","#ff7f91","#b69cff","#7cc8ff","#a6d46f","#ffad7c"];
+  function colorFor(v){let h=0;for(const c of String(v))h=(h*31+c.charCodeAt(0))>>>0;return palette[h%palette.length]}
+  function currentGroupCol(){return fieldName(state.params.group)}
+  function groupLabel(){return state.params.group==="lot"?"LOT":state.params.group==="machine"?"機台":state.params.group}
+
+  function renderOverview(){
+    const rows=state.columns.map(c=>[c.name,c.type,c.missing,c.unique,`${fmt(c.numericRatio*100,1)}%`]);
+    tableStage(["欄位","型態","缺值","唯一值","數值比例"],rows);
+    const executable=[
+      ["描述統計",numericColumns().length>=1],
+      ["群組比較",numericColumns().length>=1&&!!currentGroupCol()],
+      ["迴歸",numericColumns().length>=2],
+      ["製程能力",numericColumns().some(c=>{const s=state.specs[c.name];return s&&(s.lsl!=null||s.usl!=null)})],
+      ["X̄-R",numericColumns().length>=1&&!!state.mapping.lot],
+      ["PCA",numericColumns().length>=3]
+    ];
+    state.lastResult={procedure:"data.overview",columns:state.columns,executable:Object.fromEntries(executable)};
+    $("resultPanel").className="result good";
+    $("resultPanel").innerHTML=executable.map(([n,ok])=>`${ok?"✅":"⚠️"} ${n}`).join("<br>");
+  }
+  function renderMapping(){
+    const rows=numericColumns().map(c=>{const s=state.specs[c.name]||{};return[c.name,s.stdId||"",s.label||c.name,s.unit||"",s.lsl??"—",s.usl??"—"]});
+    tableStage(["Source","STD ID","USER Label","Unit","LSL","USL"],rows);
+    state.lastResult={procedure:"data.mapping",mapping:state.mapping,specs:state.specs};
+    $("resultPanel").className="result";
+    $("resultPanel").innerHTML=`LOT：${esc(state.mapping.lot||"未指定")}<br>日期：${esc(state.mapping.date||"未指定")}<br>機台：${esc(state.mapping.machine||"未指定")}`;
+  }
+
+  function descriptives(col){
+    const all=state.rows.map(r=>toNumber(r[col])),a=all.filter(v=>v!=null),s=[...a].sort((x,y)=>x-y),m=mean(a),sd=sampleStd(a);
+    return {column:col,n:a.length,missing:all.length-a.length,mean:m,median:median(a),sd,variance:sampleVar(a),min:s[0],q1:quantile(s,.25),q3:quantile(s,.75),max:s[s.length-1],cv:m?sd/Math.abs(m):null,skewness:skewness(a),excess_kurtosis:kurtosis(a)};
+  }
+  function renderSummary(){
+    const cols=state.params.metrics.length?state.params.metrics:numericColumns().map(c=>c.name);
+    const rs=cols.map(descriptives);
+    tableStage(["變項","n","缺值","平均","中位數","SD","變異數","Min","Q1","Q3","Max","CV","偏態","超額峰度"],
+      rs.map(r=>[r.column,r.n,r.missing,fmt(r.mean),fmt(r.median),fmt(r.sd),fmt(r.variance),fmt(r.min),fmt(r.q1),fmt(r.q3),fmt(r.max),r.cv==null?"—":`${fmt(r.cv*100,1)}%`,fmt(r.skewness),fmt(r.excess_kurtosis)]));
+    state.lastResult={procedure:"describe.summary",statistics:rs};
+    $("resultPanel").className="result good";$("resultPanel").innerHTML=`已計算 ${rs.length} 個數值欄位。`;
+  }
+
+  function drawHistogram(capability=false){
+    const col=state.params.metric,a=values(col);if(a.length<2)return emptyStage("需要至少 2 筆有效數值。");
+    const {ctx,w,h}=setupCanvas(),m={l:58,r:25,t:35,b:48},[lo,hi]=bounds(a),bins=Math.max(5,Math.min(18,Math.ceil(Math.sqrt(a.length)))),step=(hi-lo)/bins;
+    const counts=Array(bins).fill(0);a.forEach(v=>{let i=Math.floor((v-lo)/step);i=clamp(i,0,bins-1);counts[i]++});
+    const ymax=Math.max(...counts,1),bw=(w-m.l-m.r)/bins;
+    ctx.fillStyle="#060b14";ctx.fillRect(0,0,w,h);
+    for(let i=0;i<=5;i++){const y=m.t+(h-m.t-m.b)*i/5;ctx.strokeStyle="#24344c";ctx.beginPath();ctx.moveTo(m.l,y);ctx.lineTo(w-m.r,y);ctx.stroke();
+      ctx.fillStyle="#8fa4c1";ctx.textAlign="right";ctx.font="10px sans-serif";ctx.fillText(fmt(ymax*(5-i)/5,0),m.l-7,y+3)}
+    counts.forEach((c,i)=>{const x=m.l+i*bw,y=m.t+(ymax-c)/ymax*(h-m.t-m.b);ctx.fillStyle="#7c9cff";ctx.fillRect(x+1,y,bw-2,h-m.b-y)});
+    const X=v=>m.l+(v-lo)/(hi-lo)*(w-m.l-m.r);
+    if(capability){
+      const s=state.specs[col]||{};ctx.lineWidth=2;
+      [["LSL",s.lsl,"#ffc267"],["USL",s.usl,"#ffc267"],["Target",s.target,"#69d8c0"]].forEach(([lab,v,color])=>{
+        if(v==null)return;const x=X(v);ctx.strokeStyle=color;ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(x,m.t);ctx.lineTo(x,h-m.b);ctx.stroke();ctx.setLineDash([]);
+        ctx.fillStyle=color;ctx.textAlign="center";ctx.fillText(lab,x,m.t-8);
+      });
+    }
+    ctx.strokeStyle="#455773";ctx.beginPath();ctx.moveTo(m.l,m.t);ctx.lineTo(m.l,h-m.b);ctx.lineTo(w-m.r,h-m.b);ctx.stroke();
+    ctx.fillStyle="#d8e5f7";ctx.textAlign="center";ctx.font="12px sans-serif";ctx.fillText(col,w/2,h-10);
+    return {bins,counts,range:[lo,hi]};
+  }
+
+  function renderECDF(){
+    const col=state.params.metric,a=values(col).sort((x,y)=>x-y);if(a.length<2)return emptyStage("需要至少 2 筆有效數值。");
+    const {ctx,w,h}=setupCanvas(),m={l:58,r:25,t:35,b:48},[xlo,xhi]=bounds(a);
+    axes(ctx,w,h,m,xlo,xhi,0,1,col,"累積比例");
+    const X=v=>m.l+(v-xlo)/(xhi-xlo)*(w-m.l-m.r),Y=v=>m.t+(1-v)*(h-m.t-m.b);
+    ctx.strokeStyle="#69d8c0";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(X(a[0]),Y(0));
+    a.forEach((v,i)=>{const p=(i+1)/a.length;ctx.lineTo(X(v),Y(i/a.length));ctx.lineTo(X(v),Y(p))});ctx.stroke();
+    state.lastResult={procedure:"describe.ecdf",metric:col,n:a.length};
+    $("resultPanel").className="result good";$("resultPanel").innerHTML=`ECDF 使用 ${a.length} 筆資料，不受 histogram bins 影響。`;
+  }
+
+  function normalInv(p){
+    if(p<=0||p>=1)return p===0?-Infinity:p===1?Infinity:NaN;
+    const a=[-39.6968302866538,220.946098424521,-275.928510446969,138.357751867269,-30.6647980661472,2.50662827745924];
+    const b=[-54.4760987982241,161.585836858041,-155.698979859887,66.8013118877197,-13.2806815528857];
+    const c=[-.00778489400243029,-.322396458041136,-2.40075827716184,-2.54973253934373,4.37466414146497,2.93816398269878];
+    const d=[.00778469570904146,.32246712907004,2.445134137143,3.75440866190742];
+    const pl=.02425,ph=1-pl;let q,r;
+    if(p<pl){q=Math.sqrt(-2*Math.log(p));return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1)}
+    if(p>ph){q=Math.sqrt(-2*Math.log(1-p));return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1)}
+    q=p-.5;r=q*q;return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
+  }
+  function renderQQ(){
+    const col=state.params.metric,a=values(col).sort((x,y)=>x-y);if(a.length<3)return emptyStage("Q-Q 圖需要至少 3 筆。");
+    const pts=a.map((v,i)=>({x:normalInv((i+.5)/a.length),y:v})),{ctx,w,h}=setupCanvas(),m={l:58,r:25,t:35,b:48};
+    const [xlo,xhi]=bounds(pts.map(p=>p.x)),[ylo,yhi]=bounds(a);axes(ctx,w,h,m,xlo,xhi,ylo,yhi,"理論常態分位數",col);
+    const X=v=>m.l+(v-xlo)/(xhi-xlo)*(w-m.l-m.r),Y=v=>m.t+(yhi-v)/(yhi-ylo)*(h-m.t-m.b);
+    pts.forEach(p=>{ctx.fillStyle="#7c9cff";ctx.beginPath();ctx.arc(X(p.x),Y(p.y),4,0,Math.PI*2);ctx.fill()});
+    const mu=mean(a),sd=sampleStd(a);ctx.strokeStyle="#ffc267";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(X(xlo),Y(mu+sd*xlo));ctx.lineTo(X(xhi),Y(mu+sd*xhi));ctx.stroke();
+    state.lastResult={procedure:"describe.qq",metric:col,n:a.length};
+    $("resultPanel").className="result";$("resultPanel").innerHTML="點接近直線代表常態近似較合理；尾端偏離表示偏態或厚尾。";
+  }
+
+  function categoryCounts(){
+    const col=currentGroupCol();if(!col)return [];
+    const m=new Map();state.rows.forEach(r=>{const g=String(r[col]??"").trim()||"(空白)";m.set(g,(m.get(g)||0)+1)});
+    return [...m].map(([g,n])=>({g,n}));
+  }
+  function drawCategory(pareto=false){
+    let items=categoryCounts();if(!items.length)return emptyStage("請指定可用的類別欄位。");
+    if(pareto)items.sort((a,b)=>b.n-a.n);
+    const {ctx,w,h}=setupCanvas(),m={l:52,r:pareto?58:25,t:35,b:78},max=Math.max(...items.map(x=>x.n)),bw=(w-m.l-m.r)/items.length;
+    ctx.fillStyle="#060b14";ctx.fillRect(0,0,w,h);
+    for(let i=0;i<=5;i++){const y=m.t+(h-m.t-m.b)*i/5;ctx.strokeStyle="#24344c";ctx.beginPath();ctx.moveTo(m.l,y);ctx.lineTo(w-m.r,y);ctx.stroke();
+      ctx.fillStyle="#8fa4c1";ctx.textAlign="right";ctx.fillText(fmt(max*(5-i)/5,0),m.l-6,y+3)}
+    items.forEach((it,i)=>{const x=m.l+i*bw+2,y=m.t+(max-it.n)/max*(h-m.t-m.b);ctx.fillStyle=colorFor(it.g);ctx.fillRect(x,y,bw-4,h-m.b-y);
+      ctx.save();ctx.translate(x+bw/2,h-m.b+8);ctx.rotate(-Math.PI/4);ctx.fillStyle="#cbd8ea";ctx.textAlign="right";ctx.font="10px sans-serif";ctx.fillText(it.g,0,0);ctx.restore()});
+    if(pareto){const total=sum(items.map(x=>x.n));let cum=0;ctx.strokeStyle="#ffc267";ctx.lineWidth=2;ctx.beginPath();items.forEach((it,i)=>{cum+=it.n;const x=m.l+(i+.5)*bw,y=m.t+(1-cum/total)*(h-m.t-m.b);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.stroke();
+      ctx.fillStyle="#ffc267";ctx.textAlign="right";ctx.fillText("100%",w-8,m.t+4);ctx.fillText("0%",w-8,h-m.b)}
+    state.lastResult={procedure:pareto?"category.pareto":"category.bar",group:groupLabel(),counts:items};
+    $("resultPanel").className="result good";$("resultPanel").innerHTML=`${items.length} 個類別，共 ${sum(items.map(x=>x.n))} 筆。`;
+  }
+
+  function boxStats(a){const s=[...a].sort((x,y)=>x-y);return{min:s[0],q1:quantile(s,.25),med:quantile(s,.5),q3:quantile(s,.75),max:s[s.length-1],mean:mean(s),sd:sampleStd(s),n:s.length}}
+  function drawGrouped(mode){
+    const metric=state.params.metric,g=grouped(metric,state.params.group),items=[...g].map(([name,a])=>({name,...boxStats(a)}));
+    if(items.length<2)return emptyStage("需要至少 2 個有效群組。");
+    const {ctx,w,h}=setupCanvas(),m={l:58,r:25,t:35,b:75},lo=Math.min(...items.map(x=>x.min)),hi=Math.max(...items.map(x=>x.max)),span=hi-lo||1;
+    const Y=v=>m.t+(hi-v)*(h-m.t-m.b)/span,bw=(w-m.l-m.r)/items.length;
+    ctx.fillStyle="#060b14";ctx.fillRect(0,0,w,h);
+    for(let i=0;i<=5;i++){const y=m.t+(h-m.t-m.b)*i/5;ctx.strokeStyle="#24344c";ctx.beginPath();ctx.moveTo(m.l,y);ctx.lineTo(w-m.r,y);ctx.stroke();
+      ctx.fillStyle="#8fa4c1";ctx.textAlign="right";ctx.fillText(fmt(hi-span*i/5,2),m.l-7,y+3)}
+    items.forEach((it,i)=>{const x=m.l+(i+.5)*bw,c=colorFor(it.name);ctx.strokeStyle=c;ctx.lineWidth=2;
+      if(mode==="box"){const boxW=Math.min(38,bw*.5);ctx.beginPath();ctx.moveTo(x,Y(it.min));ctx.lineTo(x,Y(it.max));ctx.stroke();ctx.fillStyle="rgba(124,156,255,.2)";
+        ctx.fillRect(x-boxW/2,Y(it.q3),boxW,Y(it.q1)-Y(it.q3));ctx.strokeRect(x-boxW/2,Y(it.q3),boxW,Y(it.q1)-Y(it.q3));
+        ctx.beginPath();ctx.moveTo(x-boxW/2,Y(it.med));ctx.lineTo(x+boxW/2,Y(it.med));ctx.stroke()}
+      else{const t=tCritical95(it.n-1),ci=it.sd==null?0:t*it.sd/Math.sqrt(it.n);ctx.beginPath();ctx.moveTo(x,Y(it.mean-ci));ctx.lineTo(x,Y(it.mean+ci));ctx.stroke();
+        ctx.beginPath();ctx.moveTo(x-6,Y(it.mean-ci));ctx.lineTo(x+6,Y(it.mean-ci));ctx.moveTo(x-6,Y(it.mean+ci));ctx.lineTo(x+6,Y(it.mean+ci));ctx.stroke();
+        ctx.fillStyle=c;ctx.beginPath();ctx.arc(x,Y(it.mean),5,0,Math.PI*2);ctx.fill()}
+      ctx.save();ctx.translate(x,h-m.b+10);ctx.rotate(-Math.PI/4);ctx.fillStyle="#cbd8ea";ctx.textAlign="right";ctx.font="10px sans-serif";ctx.fillText(it.name,0,0);ctx.restore()
+    });
+    state.lastResult={procedure:mode==="box"?"compare.box":"compare.mean_ci",metric,group:groupLabel(),groups:items};
+    $("resultPanel").className="result good";$("resultPanel").innerHTML=`${items.length} 組；群組樣本數：${items.map(x=>`${x.name}=${x.n}`).join("、")}`;
+  }
+  function tCritical95(df){const table=[null,12.706,4.303,3.182,2.776,2.571,2.447,2.365,2.306,2.262,2.228,2.201,2.179,2.160,2.145,2.131,2.120,2.110,2.101,2.093,2.086,2.080,2.074,2.069,2.064,2.060,2.056,2.052,2.048,2.045,2.042];return df<=30?table[Math.max(1,df)]:1.96}
+
+  function logGamma(z){
+    const c=[676.5203681218851,-1259.1392167224028,771.32342877765313,-176.61502916214059,12.507343278686905,-.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];
+    if(z<.5)return Math.log(Math.PI)-Math.log(Math.sin(Math.PI*z))-logGamma(1-z);
+    z-=1;let x=.99999999999980993;for(let i=0;i<c.length;i++)x+=c[i]/(z+i+1);const t=z+c.length-.5;
+    return .5*Math.log(2*Math.PI)+(z+.5)*Math.log(t)-t+Math.log(x);
+  }
+  function betacf(a,b,x){
+    const MAX=200,EPS=3e-12,FPMIN=1e-30;let qab=a+b,qap=a+1,qam=a-1,c=1,d=1-qab*x/qap;if(Math.abs(d)<FPMIN)d=FPMIN;d=1/d;let h=d;
+    for(let m=1;m<=MAX;m++){let m2=2*m,aa=m*(b-m)*x/((qam+m2)*(a+m2));d=1+aa*d;if(Math.abs(d)<FPMIN)d=FPMIN;c=1+aa/c;if(Math.abs(c)<FPMIN)c=FPMIN;d=1/d;h*=d*c;
+      aa=-(a+m)*(qab+m)*x/((a+m2)*(qap+m2));d=1+aa*d;if(Math.abs(d)<FPMIN)d=FPMIN;c=1+aa/c;if(Math.abs(c)<FPMIN)c=FPMIN;d=1/d;const del=d*c;h*=del;if(Math.abs(del-1)<EPS)break}
+    return h;
+  }
+  function regBeta(x,a,b){if(x<=0)return 0;if(x>=1)return 1;const bt=Math.exp(logGamma(a+b)-logGamma(a)-logGamma(b)+a*Math.log(x)+b*Math.log(1-x));return x<(a+1)/(a+b+2)?bt*betacf(a,b,x)/a:1-bt*betacf(b,a,1-x)/b}
+  function fSurvival(F,d1,d2){if(F<0)return 1;const x=d2/(d2+d1*F);return regBeta(x,d2/2,d1/2)}
+  function gammaP(a,x){
+    if(x<=0)return 0;if(x<a+1){let ap=a,sum=1/a,del=sum;for(let n=1;n<=200;n++){ap++;del*=x/ap;sum+=del;if(Math.abs(del)<Math.abs(sum)*1e-12)break}return sum*Math.exp(-x+a*Math.log(x)-logGamma(a))}
+    let b=x+1-a,c=1/1e-30,d=1/b,h=d;for(let i=1;i<=200;i++){const an=-i*(i-a);b+=2;d=an*d+b;if(Math.abs(d)<1e-30)d=1e-30;c=b+an/c;if(Math.abs(c)<1e-30)c=1e-30;d=1/d;const del=d*c;h*=del;if(Math.abs(del-1)<1e-12)break}return 1-Math.exp(-x+a*Math.log(x)-logGamma(a))*h
+  }
+  function chiSquareSurvival(x,df){return 1-gammaP(df/2,x/2)}
+  function tTwoSidedP(t,df){const x=df/(df+t*t);return regBeta(x,df/2,.5)}
+
+  /* ===== statistics/tests.js + statistics/anova.js + statistics/posthoc.js ===== */
+  function erf(x){
+    const sign=x<0?-1:1,a=Math.abs(x),t=1/(1+.3275911*a);
+    const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-.284496736)*t+.254829592)*t*Math.exp(-a*a);
+    return sign*y;
+  }
+  function normalCDF(x){return .5*(1+erf(x/Math.SQRT2))}
+  function normalTwoSidedP(z){return clamp(2*(1-normalCDF(Math.abs(z))),0,1)}
+  function varianceOfGroup(group){return sampleVar(group.values)}
+  function normalizeGroupInput(groups){
+    return groups.map((group,index)=>Array.isArray(group)
+      ?{name:`G${index+1}`,values:group.map(Number).filter(Number.isFinite)}
+      :{name:String(group.name),values:group.values.map(Number).filter(Number.isFinite)})
+      .filter(group=>group.values.length);
+  }
+  function anovaFromGroups(input){
+    const groups=normalizeGroupInput(input).filter(group=>group.values.length>=2);
+    if(groups.length<2)return {valid:false,reason:"至少需要兩組且各組 n>=2。"};
+    const all=groups.flatMap(group=>group.values),grand=mean(all);
+    const ssb=sum(groups.map(group=>group.values.length*(mean(group.values)-grand)**2));
+    const ssw=sum(groups.map(group=>sum(group.values.map(value=>(value-mean(group.values))**2))));
+    const df1=groups.length-1,df2=all.length-groups.length,msb=ssb/df1,msw=ssw/df2,F=msw?msb/msw:Infinity;
+    return {valid:true,F,p:fSurvival(F,df1,df2),df1,df2,ssb,ssw,msb,msw,eta_squared:ssb/(ssb+ssw),groups};
+  }
+  function welchAnovaFromGroups(input){
+    const groups=normalizeGroupInput(input).filter(group=>group.values.length>=2&&sampleVar(group.values)>0);
+    const k=groups.length;
+    if(k<2)return {valid:false,reason:"Welch ANOVA 至少需要兩組且各組變異大於 0。"};
+    const details=groups.map(group=>({name:group.name,n:group.values.length,mean:mean(group.values),variance:sampleVar(group.values)}));
+    details.forEach(group=>group.weight=group.n/group.variance);
+    const W=sum(details.map(group=>group.weight)),weightedMean=sum(details.map(group=>group.weight*group.mean))/W;
+    const A=sum(details.map(group=>group.weight*(group.mean-weightedMean)**2))/(k-1);
+    const B=sum(details.map(group=>(1-group.weight/W)**2/(group.n-1)));
+    const correction=1+2*(k-2)*B/(k*k-1),F=A/correction,df1=k-1,df2=(k*k-1)/(3*B);
+    const overall=groups.flatMap(group=>group.values),grand=mean(overall);
+    const between=sum(groups.map(group=>group.values.length*(mean(group.values)-grand)**2));
+    const total=sum(overall.map(value=>(value-grand)**2));
+    return {valid:true,F,p:fSurvival(F,df1,df2),df1,df2,weighted_mean:weightedMean,eta_squared:total?between/total:null,groups:details};
+  }
+  function oneSampleTFrom(valuesInput,mu0){
+    const a=valuesInput.map(Number).filter(Number.isFinite),n=a.length,m=mean(a),sd=sampleStd(a);
+    if(n<2||!sd)return {valid:false,reason:"至少需要兩筆且樣本標準差不可為 0。"};
+    const se=sd/Math.sqrt(n),t=(m-mu0)/se,df=n-1,critical=tCritical95(df);
+    return {valid:true,n,mean:m,sd,mu0,difference:m-mu0,se,t,df,p:tTwoSidedP(Math.abs(t),df),ci:[m-mu0-critical*se,m-mu0+critical*se],effect_size:(m-mu0)/sd};
+  }
+  function twoSampleTFrom(aInput,bInput,welch=true){
+    const a=aInput.map(Number).filter(Number.isFinite),b=bInput.map(Number).filter(Number.isFinite);
+    if(a.length<2||b.length<2)return {valid:false,reason:"兩組均至少需要兩筆。"};
+    const n1=a.length,n2=b.length,m1=mean(a),m2=mean(b),v1=sampleVar(a),v2=sampleVar(b),difference=m1-m2;
+    let se,df,pooledVariance;
+    if(welch){
+      se=Math.sqrt(v1/n1+v2/n2);
+      df=(v1/n1+v2/n2)**2/((v1/n1)**2/(n1-1)+(v2/n2)**2/(n2-1));
+    }else{
+      pooledVariance=((n1-1)*v1+(n2-1)*v2)/(n1+n2-2);
+      se=Math.sqrt(pooledVariance*(1/n1+1/n2));
+      df=n1+n2-2;
+    }
+    if(!se)return {valid:false,reason:"標準誤為 0。"};
+    const t=difference/se,critical=tCritical95(df),pooledSD=Math.sqrt(((n1-1)*v1+(n2-1)*v2)/(n1+n2-2));
+    const d=pooledSD?difference/pooledSD:null,J=1-3/(4*(n1+n2)-9);
+    return {valid:true,n1,n2,mean1:m1,mean2:m2,variance1:v1,variance2:v2,difference,se,t,df,p:tTwoSidedP(Math.abs(t),df),ci:[difference-critical*se,difference+critical*se],effect_size:d==null?null:d*J,pooled_variance:pooledVariance??null};
+  }
+  function pairedTFrom(aInput,bInput){
+    const pairs=aInput.map((value,index)=>[Number(value),Number(bInput[index])]).filter(pair=>pair.every(Number.isFinite));
+    const differences=pairs.map(pair=>pair[0]-pair[1]),result=oneSampleTFrom(differences,0);
+    return result.valid?{...result,pairs:pairs.length,differences,effect_size_dz:result.effect_size}:result;
+  }
+  function regressionFromArrays(xInput,yInput){
+    const pairs=xInput.map((value,index)=>[Number(value),Number(yInput[index])]).filter(pair=>pair.every(Number.isFinite));
+    if(pairs.length<3)return {valid:false,reason:"至少需要三組成對數值。"};
+    const x=pairs.map(pair=>pair[0]),y=pairs.map(pair=>pair[1]),mx=mean(x),my=mean(y);
+    const ssx=sum(x.map(value=>(value-mx)**2)),sxy=sum(x.map((value,index)=>(value-mx)*(y[index]-my)));
+    if(!ssx)return {valid:false,reason:"X 沒有變異。"};
+    const slope=sxy/ssx,intercept=my-slope*mx,fitted=x.map(value=>intercept+slope*value),residuals=y.map((value,index)=>value-fitted[index]);
+    const sse=sum(residuals.map(value=>value**2)),sst=sum(y.map(value=>(value-my)**2)),df=pairs.length-2,mse=sse/df,seSlope=Math.sqrt(mse/ssx),t=slope/seSlope,critical=tCritical95(df);
+    return {valid:true,n:pairs.length,intercept,slope,r_squared:sst?1-sse/sst:null,sse,mse,se_slope:seSlope,t,df,p:tTwoSidedP(Math.abs(t),df),slope_ci:[slope-critical*seSlope,slope+critical*seSlope],fitted,residuals,x,y};
+  }
+  function capabilityFromGroups(groupsInput,lsl=null,usl=null){
+    const groups=normalizeGroupInput(groupsInput),all=groups.flatMap(group=>group.values),n=groups[0]?.values.length;
+    if(!all.length||!n||!D2[n]||new Set(groups.map(group=>group.values.length)).size!==1)return {valid:false};
+    const rbar=mean(groups.map(group=>Math.max(...group.values)-Math.min(...group.values))),within=rbar/D2[n],overall=sampleStd(all),mu=mean(all);
+    const index=sigma=>{
+      if(!sigma)return null;
+      if(lsl!=null&&usl!=null)return Math.min((usl-mu)/(3*sigma),(mu-lsl)/(3*sigma));
+      if(lsl!=null)return (mu-lsl)/(3*sigma);
+      if(usl!=null)return (usl-mu)/(3*sigma);
+      return null;
+    };
+    return {valid:true,n:all.length,subgroup_size:n,mean:mu,rbar,within_sigma:within,overall_sigma:overall,cpk:index(within),ppk:index(overall)};
+  }
+  function imrLimitsFrom(input){
+    const values=input.map(Number).filter(Number.isFinite);
+    if(values.length<3)return {valid:false};
+    const mr=values.slice(1).map((value,index)=>Math.abs(value-values[index])),mrbar=mean(mr),sigma=mrbar/1.128,mu=mean(values);
+    return {valid:true,values,mr,sigma,individual:{cl:mu,ucl:mu+3*sigma,lcl:mu-3*sigma},moving_range:{cl:mrbar,ucl:3.267*mrbar,lcl:0}};
+  }
+  function xbarRLimitsFrom(groupsInput){
+    const groups=normalizeGroupInput(groupsInput),sizes=groups.map(group=>group.values.length),n=sizes[0];
+    if(groups.length<3||new Set(sizes).size!==1||!A2[n])return {valid:false};
+    const statistics=groups.map(group=>({name:group.name,mean:mean(group.values),range:Math.max(...group.values)-Math.min(...group.values)}));
+    const xbar=mean(statistics.map(item=>item.mean)),rbar=mean(statistics.map(item=>item.range));
+    return {valid:true,n,statistics,xbar:{cl:xbar,ucl:xbar+A2[n]*rbar,lcl:xbar-A2[n]*rbar},range:{cl:rbar,ucl:D4[n]*rbar,lcl:D3[n]*rbar}};
+  }
+  function qqCorrelation(valuesInput){
+    const sorted=valuesInput.map(Number).filter(Number.isFinite).sort((a,b)=>a-b);
+    if(sorted.length<3)return null;
+    const theoretical=sorted.map((_,index)=>normalInv((index+.5)/sorted.length));
+    return pearson(sorted,theoretical);
+  }
+  function brownForsytheFromGroups(groupsInput){
+    const groups=normalizeGroupInput(groupsInput).filter(group=>group.values.length>=2);
+    const deviations=groups.map(group=>({name:group.name,values:group.values.map(value=>Math.abs(value-median(group.values)))}));
+    const result=anovaFromGroups(deviations);
+    return result.valid?{F:result.F,p:result.p,df1:result.df1,df2:result.df2}:null;
+  }
+  function groupAssumptionReport(){
+    const groups=selectedGroups().map(([name,items])=>({name,values:items}));
+    if(groups.length<2)return {valid:false,warnings:["至少需要兩個群組。"],groups:[]};
+    const detail=groups.map(group=>{
+      const sorted=[...group.values].sort((a,b)=>a-b),q1=quantile(sorted,.25),q3=quantile(sorted,.75),iqr=q3-q1;
+      const outliers=sorted.filter(value=>value<q1-1.5*iqr||value>q3+1.5*iqr).length;
+      return {name:group.name,n:sorted.length,mean:mean(sorted),median:median(sorted),sd:sampleStd(sorted),iqr,skewness:skewness(sorted),qq_correlation:qqCorrelation(sorted),outliers};
+    });
+    const variances=detail.map(group=>group.sd**2).filter(value=>value>0),varianceRatio=variances.length?Math.max(...variances)/Math.min(...variances):Infinity;
+    const brownForsythe=brownForsytheFromGroups(groups);
+    const normal=detail.every(group=>group.n>=5&&Math.abs(group.skewness??0)<1.5&&(group.qq_correlation??0)>=.94);
+    const equalVariance=varianceRatio<=4&&(brownForsythe?.p??0)>=.05;
+    const adequateN=detail.every(group=>group.n>=5);
+    const severeOutliers=detail.some(group=>group.outliers/Math.max(group.n,1)>.15);
+    const warnings=[];
+    if(!adequateN)warnings.push("至少一組 n<5，常態與變異診斷可信度有限。");
+    if(!normal)warnings.push("Q-Q／偏態診斷未支持近似常態。");
+    if(!equalVariance)warnings.push("Brown-Forsythe 或變異數比值顯示不等變異。");
+    if(severeOutliers)warnings.push("偵測到相對較多的 IQR 離群點。");
+    return {valid:true,groups:detail,group_count:detail.length,variance_ratio:varianceRatio,brown_forsythe:brownForsythe,checks:{adequate_n:adequateN,approximate_normality:normal,equal_variance:equalVariance,severe_outliers:severeOutliers},warnings};
+  }
+  function deterministicRecommendation(report=groupAssumptionReport()){
+    if(!report.valid)return {recommended_procedure:null,confidence:0,reasons:[],alternatives:[],warnings:report.warnings||[],forbidden_inferences:["資料不足時不得輸出空白或誤導圖。"]};
+    const k=report.group_count,normal=report.checks.approximate_normality,equal=report.checks.equal_variance,outliers=report.checks.severe_outliers;
+    let recommended,alternatives=[],confidence=.82,reasons=[`${k} groups detected`];
+    if(k===2){
+      if(normal&&!outliers&&equal){recommended="compare.t.pooled";alternatives=["compare.t.welch","compare.mann_whitney"];reasons.push("Q-Q diagnostics acceptable","Brown-Forsythe p >= 0.05");}
+      else if(normal&&!outliers){recommended="compare.t.welch";alternatives=["compare.mann_whitney"];reasons.push("approximate normality acceptable","group variances are unequal");}
+      else{recommended="compare.mann_whitney";alternatives=["compare.t.welch"];confidence=.74;reasons.push("skewness, Q-Q, or outlier diagnostic is unfavorable");}
+    }else{
+      if(normal&&!outliers&&equal){recommended="compare.anova.one_way";alternatives=["compare.anova.welch","compare.kruskal_wallis"];reasons.push("Q-Q diagnostics acceptable","equal variance diagnostic acceptable");}
+      else if(normal&&!outliers){recommended="compare.anova.welch";alternatives=["compare.kruskal_wallis"];reasons.push("approximate normality acceptable","Brown-Forsythe or variance ratio indicates unequal variances");}
+      else{recommended="compare.kruskal_wallis";alternatives=["compare.anova.welch"];confidence=.72;reasons.push("skewness, Q-Q, or outlier diagnostic is unfavorable");}
+    }
+    if(!report.checks.adequate_n)confidence-=.12;
+    return {recommended_procedure:recommended,confidence:clamp(confidence,.4,.95),reasons,alternatives,warnings:report.warnings,failed_assumptions:Object.entries(report.checks).filter(([key,value])=>key!=="severe_outliers"&&!value).map(([key])=>key),forbidden_inferences:["顯著不等於因果。","未控制混雜因子時不得歸因於機台或人員。"]};
+  }
+  function mannWhitneyFrom(aInput,bInput){
+    const a=aInput.map(Number).filter(Number.isFinite),b=bInput.map(Number).filter(Number.isFinite),combined=[...a,...b];
+    if(a.length<2||b.length<2)return {valid:false,reason:"兩組均至少需要兩筆。"};
+    const ranks=rankValues(combined),rankA=sum(ranks.slice(0,a.length)),u1=rankA-a.length*(a.length+1)/2,u2=a.length*b.length-u1,U=Math.min(u1,u2);
+    const counts={};combined.forEach(value=>counts[value]=(counts[value]||0)+1);
+    const tie=sum(Object.values(counts).map(count=>count**3-count)),N=combined.length;
+    const variance=a.length*b.length/12*((N+1)-tie/(N*(N-1))),z=(u1-a.length*b.length/2)/Math.sqrt(variance);
+    return {valid:true,n1:a.length,n2:b.length,u1,u2,U,z,p:normalTwoSidedP(z),effect_size_rank_biserial:1-2*U/(a.length*b.length)};
+  }
+  function wilcoxonSignedRankFrom(aInput,bInput){
+    const differences=aInput.map((value,index)=>Number(value)-Number(bInput[index])).filter(Number.isFinite).filter(value=>value!==0);
+    if(differences.length<3)return {valid:false,reason:"至少需要三個非零成對差值。"};
+    const ranks=rankValues(differences.map(Math.abs)),wPlus=sum(ranks.filter((_,index)=>differences[index]>0)),wMinus=sum(ranks.filter((_,index)=>differences[index]<0)),W=Math.min(wPlus,wMinus),n=differences.length;
+    const meanW=n*(n+1)/4,variance=n*(n+1)*(2*n+1)/24,z=(wPlus-meanW)/Math.sqrt(variance);
+    return {valid:true,n,w_plus:wPlus,w_minus:wMinus,W,z,p:normalTwoSidedP(z),effect_size_rank_biserial:(wPlus-wMinus)/(wPlus+wMinus),excluded_zero_differences:aInput.length-n};
+  }
+  function studentizedRangePApprox(q,k,df){
+    const pairP=tTwoSidedP(Math.abs(q)/Math.SQRT2,df),comparisons=k*(k-1)/2;
+    return clamp(1-(1-pairP)**comparisons,0,1);
+  }
+  function studentizedRangeCriticalApprox(k,df,alpha=.05){
+    let low=0,high=20;
+    for(let iteration=0;iteration<80;iteration++){
+      const middle=(low+high)/2;
+      if(studentizedRangePApprox(middle,k,df)>alpha)low=middle;else high=middle;
+    }
+    return (low+high)/2;
+  }
+  function tukeyComparisons(groupsInput){
+    const anova=anovaFromGroups(groupsInput);if(!anova.valid)return [];
+    const groups=normalizeGroupInput(groupsInput),k=groups.length,comparisons=[],critical=studentizedRangeCriticalApprox(k,anova.df2);
+    for(let i=0;i<k;i++)for(let j=i+1;j<k;j++){
+      const a=groups[i],b=groups[j],difference=mean(a.values)-mean(b.values);
+      const se=Math.sqrt(anova.msw/2*(1/a.values.length+1/b.values.length)),q=Math.abs(difference)/se;
+      const raw=tTwoSidedP(q/Math.SQRT2,anova.df2),adjusted=studentizedRangePApprox(q,k,anova.df2);
+      comparisons.push({group_a:a.name,group_b:b.name,difference,standard_error:se,statistic:q,raw_p_value:raw,adjusted_p_value:adjusted,ci:[difference-critical*se,difference+critical*se],significant:adjusted<.05,method:"Tukey HSD (deterministic family-wise approximation)"});
+    }
+    return comparisons;
+  }
+  function gamesHowellComparisons(groupsInput){
+    const groups=normalizeGroupInput(groupsInput),k=groups.length,comparisons=[];
+    for(let i=0;i<k;i++)for(let j=i+1;j<k;j++){
+      const a=groups[i],b=groups[j],na=a.values.length,nb=b.values.length,va=sampleVar(a.values),vb=sampleVar(b.values),difference=mean(a.values)-mean(b.values);
+      const pairSE=Math.sqrt(va/na+vb/nb),df=(va/na+vb/nb)**2/((va/na)**2/(na-1)+(vb/nb)**2/(nb-1)),q=Math.abs(difference)/(pairSE/Math.SQRT2);
+      const raw=tTwoSidedP(Math.abs(difference/pairSE),df),adjusted=studentizedRangePApprox(q,k,df),critical=studentizedRangeCriticalApprox(k,df);
+      comparisons.push({group_a:a.name,group_b:b.name,difference,standard_error:pairSE,statistic:q,df,raw_p_value:raw,adjusted_p_value:adjusted,ci:[difference-critical*pairSE/Math.SQRT2,difference+critical*pairSE/Math.SQRT2],significant:adjusted<.05,method:"Games-Howell (deterministic family-wise approximation)"});
+    }
+    return comparisons;
+  }
+  function dunnComparisons(groupsInput){
+    const groups=normalizeGroupInput(groupsInput),tagged=[];groups.forEach(group=>group.values.forEach(value=>tagged.push({group:group.name,value})));
+    const ranks=rankValues(tagged.map(item=>item.value));tagged.forEach((item,index)=>item.rank=ranks[index]);
+    const N=tagged.length,counts={};tagged.forEach(item=>counts[item.value]=(counts[item.value]||0)+1);
+    const tie=sum(Object.values(counts).map(count=>count**3-count)),varianceBase=(N*(N+1)/12)-tie/(12*(N-1));
+    const details=groups.map(group=>{const items=tagged.filter(item=>item.group===group.name);return {name:group.name,n:items.length,meanRank:mean(items.map(item=>item.rank))}});
+    const m=details.length*(details.length-1)/2,comparisons=[];
+    for(let i=0;i<details.length;i++)for(let j=i+1;j<details.length;j++){
+      const a=details[i],b=details[j],difference=a.meanRank-b.meanRank,se=Math.sqrt(varianceBase*(1/a.n+1/b.n)),z=difference/se,raw=normalTwoSidedP(z),adjusted=Math.min(1,raw*m);
+      comparisons.push({group_a:a.name,group_b:b.name,difference,standard_error:se,statistic:z,raw_p_value:raw,adjusted_p_value:adjusted,ci:[null,null],significant:adjusted<.05,method:"Dunn + Bonferroni"});
+    }
+    return comparisons;
+  }
+
+  function anova(){
+    const groups=[...grouped(state.params.metric,state.params.group)].filter(([,a])=>a.length>=2);
+    if(groups.length<2)return {valid:false,reason:"需要至少 2 組且每組至少 2 筆。"};
+    const all=groups.flatMap(([,a])=>a),grand=mean(all);
+    const ssb=sum(groups.map(([,a])=>a.length*(mean(a)-grand)**2));
+    const ssw=sum(groups.map(([,a])=>sum(a.map(v=>(v-mean(a))**2))));
+    const df1=groups.length-1,df2=all.length-groups.length,F=(ssb/df1)/(ssw/df2),p=fSurvival(F,df1,df2);
+    return {valid:true,F,p,df1,df2,eta:ssb/(ssb+ssw),groups:groups.map(([name,a])=>({name,n:a.length,mean:mean(a),sd:sampleStd(a)}))}
+  }
+  function renderANOVA(){
+    const a=anova();if(!a.valid){emptyStage(a.reason);state.lastResult={procedure:"compare.anova",valid:false,reason:a.reason};$("resultPanel").className="result warn";$("resultPanel").textContent=a.reason;return}
+    tableStage(["來源","SS","df","MS","F","p-value"],[
+      ["群組間","—",a.df1,"—",fmt(a.F,4),a.p<.0001?"<0.0001":fmt(a.p,4)],
+      ["群組內","—",a.df2,"—","—","—"]
+    ]);
+    state.lastResult={procedure:"compare.anova",...a};
+    $("resultPanel").className=`result ${a.p<.05?"warn":"good"}`;
+    $("resultPanel").innerHTML=`F(${a.df1}, ${a.df2})=${fmt(a.F,3)}<br>p=${a.p<.0001?"&lt;0.0001":fmt(a.p,4)}<br>η²=${fmt(a.eta,3)}<br>${a.p<.05?"至少一組平均值不同。":"目前無足夠證據拒絕平均值相同。"}`;
+  }
+  function rankValues(values){
+    const indexed=values.map((v,i)=>({v,i})).sort((a,b)=>a.v-b.v),ranks=Array(values.length);let i=0;
+    while(i<indexed.length){let j=i;while(j+1<indexed.length&&indexed[j+1].v===indexed[i].v)j++;const rank=(i+j+2)/2;for(let k=i;k<=j;k++)ranks[indexed[k].i]=rank;i=j+1}
+    return ranks;
+  }
+  function renderKruskal(){
+    const gs=[...grouped(state.params.metric,state.params.group)].filter(([,a])=>a.length>=1);
+    if(gs.length<2){emptyStage("需要至少 2 組。");return}
+    const tagged=[];gs.forEach(([g,a])=>a.forEach(v=>tagged.push({g,v})));const ranks=rankValues(tagged.map(x=>x.v));tagged.forEach((x,i)=>x.r=ranks[i]);
+    const N=tagged.length;let H=0;const detail=gs.map(([g,a])=>{const rs=tagged.filter(x=>x.g===g).map(x=>x.r),R=sum(rs);H+=R*R/a.length;return{name:g,n:a.length,rank_sum:R,mean_rank:R/a.length}});
+    H=12/(N*(N+1))*H-3*(N+1);const df=gs.length-1,p=chiSquareSurvival(H,df);
+    tableStage(["群組","n","平均秩","秩和"],detail.map(x=>[x.name,x.n,fmt(x.mean_rank,2),fmt(x.rank_sum,2)]));
+    state.lastResult={procedure:"compare.kruskal",H,df,p,groups:detail};
+    $("resultPanel").className=`result ${p<.05?"warn":"good"}`;$("resultPanel").innerHTML=`H(${df})=${fmt(H,3)}<br>p=${p<.0001?"&lt;0.0001":fmt(p,4)}<br>${p<.05?"至少一組分布位置不同。":"目前無足夠證據認為群組位置不同。"}`;
+  }
+
+  function pearson(x,y){if(x.length<2)return null;const mx=mean(x),my=mean(y),sx=Math.sqrt(sum(x.map(v=>(v-mx)**2))),sy=Math.sqrt(sum(y.map(v=>(v-my)**2)));return sx&&sy?sum(x.map((v,i)=>(v-mx)*(y[i]-my)))/(sx*sy):null}
+  function spearman(x,y){return pearson(rankValues(x),rankValues(y))}
+  function regression(){
+    const pts=paired(state.params.x,state.params.y);if(pts.length<3)return {valid:false,reason:"至少需要 3 組成對數值。"};
+    const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y),mx=mean(xs),my=mean(ys),ssx=sum(xs.map(v=>(v-mx)**2)),sxy=sum(xs.map((v,i)=>(v-mx)*(ys[i]-my)));
+    if(!ssx)return {valid:false,reason:"X 沒有變異。"};const b1=sxy/ssx,b0=my-b1*mx;
+    const fitted=xs.map(x=>b0+b1*x),res=ys.map((y,i)=>y-fitted[i]),sse=sum(res.map(v=>v*v)),sst=sum(ys.map(v=>(v-my)**2)),r2=sst?1-sse/sst:null,df=pts.length-2,mse=sse/df,se1=Math.sqrt(mse/ssx),t=b1/se1,p=tTwoSidedP(Math.abs(t),df);
+    return {valid:true,n:pts.length,b0,b1,r2,sse,mse,se1,t,p,points:pts.map((p,i)=>({...p,fitted:fitted[i],residual:res[i]}))};
+  }
+  function drawScatter(withLine=false,residual=false){
+    const reg=regression();if(!reg.valid)return emptyStage(reg.reason);
+    const pts=reg.points.map(p=>residual?{x:p.fitted,y:p.residual,lot:p.lot,machine:p.machine}:p),{ctx,w,h}=setupCanvas(),m={l:58,r:25,t:35,b:48};
+    const [xlo,xhi]=bounds(pts.map(p=>p.x)),[ylo,yhi]=bounds(pts.map(p=>p.y));axes(ctx,w,h,m,xlo,xhi,ylo,yhi,residual?"Fitted":state.params.x,residual?"Residual":state.params.y);
+    const X=v=>m.l+(v-xlo)/(xhi-xlo)*(w-m.l-m.r),Y=v=>m.t+(yhi-v)/(yhi-ylo)*(h-m.t-m.b);
+    pts.forEach(p=>{ctx.fillStyle=p.lot?colorFor(p.lot):"#7c9cff";ctx.beginPath();ctx.arc(X(p.x),Y(p.y),4,0,Math.PI*2);ctx.fill()});
+    if(residual){ctx.strokeStyle="#ffc267";ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(m.l,Y(0));ctx.lineTo(w-m.r,Y(0));ctx.stroke();ctx.setLineDash([])}
+    else if(withLine){ctx.strokeStyle="#ffc267";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(X(xlo),Y(reg.b0+reg.b1*xlo));ctx.lineTo(X(xhi),Y(reg.b0+reg.b1*xhi));ctx.stroke()}
+    state.lastResult={procedure:residual?"relation.residual":withLine?"relation.regression":"relation.scatter",...reg};
+    $("resultPanel").className="result good";$("resultPanel").innerHTML=withLine||residual?`ŷ=${fmt(reg.b0,3)}+${fmt(reg.b1,3)}x<br>R²=${fmt(reg.r2,3)}<br>斜率 p=${reg.p<.0001?"&lt;0.0001":fmt(reg.p,4)}`:`n=${reg.n}`;
+  }
+  function renderCorrelation(){
+    const pts=paired(state.params.x,state.params.y);if(pts.length<3)return emptyStage("至少需要 3 組成對數值。");
+    const x=pts.map(p=>p.x),y=pts.map(p=>p.y),r=pearson(x,y),rho=spearman(x,y);
+    drawScatter(false,false);
+    state.lastResult={procedure:"relation.correlation",n:pts.length,pearson:r,spearman:rho};
+    $("resultPanel").className="result good";$("resultPanel").innerHTML=`Pearson r=${fmt(r,3)}<br>Spearman ρ=${fmt(rho,3)}<br>n=${pts.length}`;
+  }
+
+  /* ===== ui/workspace.js + core/result-ir.js + core/audit.js ===== */
+  function executeOverview(){renderOverview()}
+  function executeMapping(){renderMapping()}
+  function executeSummary(){renderSummary()}
+  function executeHistogram(){drawHistogram(false);state.lastResult={metric:state.params.metric,n:values(state.params.metric).length}}
+  function executeECDF(){renderECDF()}
+  function executeQQ(){renderQQ()}
+  function executeCategoryBar(){drawCategory(false)}
+  function executePareto(){drawCategory(true)}
+  function executeGroupedBox(){drawGrouped("box")}
+  function executeMeanCI(){drawGrouped("mean_ci")}
+  function executeScatter(){drawScatter(false,false)}
+  function executeCorrelation(){renderCorrelation()}
+  function executeRegression(){
+    drawScatter(true,false);
+    const pairs=paired(state.params.x,state.params.y),result=regressionFromArrays(pairs.map(item=>item.x),pairs.map(item=>item.y));
+    if(result.valid)state.lastResult={...result,x:state.params.x,y:state.params.y};
+  }
+  function executeResidual(){
+    drawScatter(false,true);
+    const pairs=paired(state.params.x,state.params.y),result=regressionFromArrays(pairs.map(item=>item.x),pairs.map(item=>item.y));
+    if(result.valid){
+      const absolute=result.residuals.map(Math.abs),hetero=pearson(result.fitted,absolute);
+      const leverage=result.x.map(value=>1/result.n+(value-mean(result.x))**2/sum(result.x.map(x=>(x-mean(result.x))**2)));
+      const cooks=result.residuals.map((residual,index)=>residual**2/(2*result.mse)*leverage[index]/(1-leverage[index])**2);
+      state.lastResult={...result,diagnostics:{residual_qq_correlation:qqCorrelation(result.residuals),absolute_residual_fitted_correlation:hetero,high_influence_points:cooks.map((value,index)=>value>4/result.n?index+1:null).filter(Boolean),cooks_distance:cooks}};
+      $("resultPanel").innerHTML+=`<br>Residual Q-Q r=${fmt(state.lastResult.diagnostics.residual_qq_correlation,3)}<br>高影響點：${state.lastResult.diagnostics.high_influence_points.join("、")||"無"}`;
+    }
+  }
+  function executeCapability(){renderCapability()}
+  function executeIMR(){drawIMR()}
+  function executeXbarR(){drawXbarR()}
+  function executeHeatmap(){drawHeatmap()}
+  function executeParallel(){drawParallel()}
+  function executePCA(){drawPCA()}
+  function executeSchema(){renderSchema()}
+  function executePrompt(){renderPrompt()}
+  function executeSupervisorReport(){renderReport()}
+
+  function questionCards(){
+    const plans={
+      distribution:["describe.summary","describe.histogram","describe.qq"],
+      two_groups:["advisor.assumptions","compare.t.welch","compare.mann_whitney"],
+      three_groups:["advisor.assumptions","compare.anova.one_way","compare.anova.welch","compare.kruskal_wallis"],
+      paired:["compare.t.paired","compare.wilcoxon_signed_rank"],
+      relationship:["relation.scatter","relation.regression","relation.residual"],
+      stability:["spc.imr","spc.xbar_r"],
+      capability:["spc.xbar_r","spc.capability"],
+      multivariate:["multi.heatmap","multi.parallel","multi.pca"]
+    };
+    return plans[state.params.question]||plans.distribution;
+  }
+  function executeQuestionAdvisor(){
+    const candidates=questionCards();
+    $("stageShell").innerHTML=`<div class="advisor-grid">${candidates.map(id=>{
+      const proc=PROCEDURE_REGISTRY[id];
+      return `<button class="advisor-card" data-open-proc="${esc(id)}"><span>${esc(proc.category.toUpperCase())}</span><b>${esc(proc.label)}</b><small>${esc(proc.description)}</small></button>`;
+    }).join("")}</div>`;
+    document.querySelectorAll("[data-open-proc]").forEach(button=>button.addEventListener("click",()=>{state.activeProc=button.dataset.openProc;buildNav();renderProcedure()}));
+    state.lastResult={question:state.params.question,candidate_procedures:candidates};
+    $("resultPanel").className="result good";$("resultPanel").innerHTML=`規則引擎列出 ${candidates.length} 個候選程序；先執行假設檢查再決定推論方法。`;
+  }
+  function assumptionStatus(value){return `<span class="status-chip ${value?"good":"warn"}">${value?"PASS":"CHECK"}</span>`}
+  function renderAssumptionReport(report){
+    const rows=report.groups.map(group=>[
+      group.name,group.n,fmt(group.mean),fmt(group.median),fmt(group.sd),fmt(group.iqr),fmt(group.skewness),fmt(group.qq_correlation),group.outliers
+    ]);
+    $("stageShell").innerHTML=`<div class="table-stage">
+      <div class="summary-line">
+        <div><small>樣本數</small>${assumptionStatus(report.checks.adequate_n)}</div>
+        <div><small>近似常態</small>${assumptionStatus(report.checks.approximate_normality)}</div>
+        <div><small>等變異</small>${assumptionStatus(report.checks.equal_variance)}</div>
+        <div><small>離群診斷</small>${assumptionStatus(!report.checks.severe_outliers)}</div>
+      </div>
+      <div class="tablewrap"><table><thead><tr>${["群組","n","Mean","Median","SD","IQR","Skew","Q-Q r","IQR 離群"].map(item=>`<th>${item}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map(row=>`<tr>${row.map(value=>`<td>${esc(value)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+      <div class="diagnostic-note">Variance ratio=${fmt(report.variance_ratio)}；Brown-Forsythe F=${fmt(report.brown_forsythe?.F)}，p=${fmt(report.brown_forsythe?.p,4)}。Q-Q r 為排序樣本與理論常態分位數之相關診斷。</div>
+    </div>`;
+  }
+  function executeAssumptionAdvisor(){
+    const report=groupAssumptionReport();state.assumptionReport=report;
+    if(!report.valid){emptyStage(report.warnings.join(" "));state.lastResult=report;return}
+    renderAssumptionReport(report);state.lastResult=report;
+    $("resultPanel").className=`result ${report.warnings.length?"warn":"good"}`;
+    $("resultPanel").innerHTML=report.warnings.map(item=>`⚠ ${esc(item)}`).join("<br>")||"群組假設診斷未發現明顯警訊。";
+  }
+  function executeMethodRecommendation(){
+    const report=groupAssumptionReport(),recommendation=deterministicRecommendation(report);state.assumptionReport=report;
+    $("stageShell").innerHTML=`<div class="recommendation">
+      <span class="eyebrow">DETERMINISTIC RULE ENGINE</span>
+      <h2>${esc(PROCEDURE_REGISTRY[recommendation.recommended_procedure]?.label||"無可執行推薦")}</h2>
+      <div class="confidence"><span style="width:${recommendation.confidence*100}%"></span></div>
+      <p>Confidence ${fmt(recommendation.confidence*100,0)}%</p>
+      <div class="recommend-grid">
+        <section><h3>推薦原因</h3>${recommendation.reasons.map(item=>`<div>✓ ${esc(item)}</div>`).join("")||"—"}</section>
+        <section><h3>替代方法</h3>${recommendation.alternatives.map(id=>`<button class="link-button" data-open-proc="${esc(id)}">${esc(PROCEDURE_REGISTRY[id]?.label||id)}</button>`).join("")||"—"}</section>
+        <section><h3>未通過／警告</h3>${[...recommendation.failed_assumptions,...recommendation.warnings].map(item=>`<div>⚠ ${esc(item)}</div>`).join("")||"無"}</section>
+        <section><h3>不允許的推論</h3>${recommendation.forbidden_inferences.map(item=>`<div>✕ ${esc(item)}</div>`).join("")}</section>
+      </div>
+    </div>`;
+    document.querySelectorAll("[data-open-proc]").forEach(button=>button.addEventListener("click",()=>{state.activeProc=button.dataset.openProc;buildNav();renderProcedure()}));
+    state.lastResult={assumption_report:report,...recommendation};
+    $("resultPanel").className=`result ${recommendation.recommended_procedure?"good":"bad"}`;
+    $("resultPanel").innerHTML=recommendation.recommended_procedure?`建議：${esc(PROCEDURE_REGISTRY[recommendation.recommended_procedure].label)}。選擇方法仍需確認研究設計與獨立性。`:"無法推薦：資料不足。";
+  }
+
+  function stateGroups(){return selectedGroups().map(([name,items])=>({name,values:items}))}
+  function inferenceTable(title,rows,summaryHtml){
+    $("stageShell").innerHTML=`<div class="table-stage"><h2 class="stage-title">${esc(title)}</h2>
+      <div class="metric-grid result-metrics">${rows.map(([label,value])=>`<div class="metric-card"><span>${esc(label)}</span><b>${esc(value)}</b></div>`).join("")}</div>
+      <div class="inference-summary">${summaryHtml}</div></div>`;
+  }
+  function formatCI(ci){return ci?.every(Number.isFinite)?`[${fmt(ci[0])}, ${fmt(ci[1])}]`:"—"}
+  function executeOneSampleT(){
+    const result=oneSampleTFrom(values(state.params.metric),Number(state.params.mu0));
+    inferenceTable("One-sample t-test",[["n",result.n],["Mean",fmt(result.mean)],["Difference",fmt(result.difference)],["t",fmt(result.t)],["df",fmt(result.df,1)],["p-value",fmt(result.p,4)],["95% CI",formatCI(result.ci)],["Cohen d",fmt(result.effect_size)]],
+      `<b>估計差值與不確定性</b><br>平均差=${fmt(result.difference)}，95% CI ${formatCI(result.ci)}；p-value 不單獨作結論。`);
+    state.lastResult=result;$("resultPanel").className=`result ${result.p<.05?"warn":"good"}`;$("resultPanel").innerHTML=`t(${fmt(result.df,0)})=${fmt(result.t)}；p=${fmt(result.p,4)}；d=${fmt(result.effect_size)}。`;
+  }
+  function twoGroupResult(welch){
+    const groups=stateGroups(),result=twoSampleTFrom(groups[0].values,groups[1].values,welch);
+    return {...result,group_a:groups[0].name,group_b:groups[1].name,method:welch?"Welch t-test":"Pooled t-test"};
+  }
+  function renderTwoGroupT(welch){
+    const result=twoGroupResult(welch);
+    inferenceTable(result.method,[["Group A",result.group_a],["Group B",result.group_b],["Difference",fmt(result.difference)],["t",fmt(result.t)],["df",fmt(result.df,2)],["p-value",fmt(result.p,4)],["95% CI",formatCI(result.ci)],["Hedges g",fmt(result.effect_size)]],
+      `<b>${esc(result.group_a)} - ${esc(result.group_b)}</b><br>平均差=${fmt(result.difference)}，95% CI ${formatCI(result.ci)}；顯著結果不得轉譯為因果。`);
+    state.lastResult=result;$("resultPanel").className=`result ${result.p<.05?"warn":"good"}`;$("resultPanel").innerHTML=`t(${fmt(result.df,2)})=${fmt(result.t)}；p=${fmt(result.p,4)}；Hedges g=${fmt(result.effect_size)}。`;
+  }
+  function executePooledT(){renderTwoGroupT(false)}
+  function executeWelchT(){renderTwoGroupT(true)}
+  function executePairedT(){
+    const pairs=paired(state.params.x,state.params.y),result=pairedTFrom(pairs.map(item=>item.x),pairs.map(item=>item.y));
+    inferenceTable("Paired t-test",[["Pairs",result.pairs],["Mean difference",fmt(result.difference)],["t",fmt(result.t)],["df",fmt(result.df,0)],["p-value",fmt(result.p,4)],["95% CI",formatCI(result.ci)],["Cohen dz",fmt(result.effect_size_dz)]],
+      `成對差=${fmt(result.difference)}，95% CI ${formatCI(result.ci)}。僅適用真實成對設計。`);
+    state.lastResult=result;$("resultPanel").className=`result ${result.p<.05?"warn":"good"}`;$("resultPanel").innerHTML=`t(${fmt(result.df,0)})=${fmt(result.t)}；p=${fmt(result.p,4)}；dz=${fmt(result.effect_size_dz)}。`;
+  }
+  function executeMannWhitney(){
+    const groups=stateGroups(),result=mannWhitneyFrom(groups[0].values,groups[1].values);
+    inferenceTable("Mann-Whitney U",[["Group A",groups[0].name],["Group B",groups[1].name],["U",fmt(result.U,1)],["z",fmt(result.z)],["p-value",fmt(result.p,4)],["Rank-biserial",fmt(result.effect_size_rank_biserial)]],
+      "秩次差異描述分布位置；若群組形狀不同，不可直接寫成中位數差。");
+    state.lastResult={...result,group_a:groups[0].name,group_b:groups[1].name};$("resultPanel").className=`result ${result.p<.05?"warn":"good"}`;$("resultPanel").innerHTML=`U=${fmt(result.U,1)}；p=${fmt(result.p,4)}；rank-biserial=${fmt(result.effect_size_rank_biserial)}。`;
+  }
+  function executeWilcoxon(){
+    const pairs=paired(state.params.x,state.params.y),result=wilcoxonSignedRankFrom(pairs.map(item=>item.x),pairs.map(item=>item.y));
+    inferenceTable("Wilcoxon signed-rank",[["Pairs",result.n],["W",fmt(result.W,1)],["z",fmt(result.z)],["p-value",fmt(result.p,4)],["Rank-biserial",fmt(result.effect_size_rank_biserial)],["Zero differences",result.excluded_zero_differences]],
+      "以非零成對差值的符號秩次計算；零差值明確記錄於結果。");
+    state.lastResult=result;$("resultPanel").className=`result ${result.p<.05?"warn":"good"}`;$("resultPanel").innerHTML=`W=${fmt(result.W,1)}；p=${fmt(result.p,4)}。`;
+  }
+  function executeOneWayAnova(){
+    const result=anovaFromGroups(stateGroups());
+    tableStage(["來源","SS","df","MS","F","p-value"],[
+      ["群組間",fmt(result.ssb),result.df1,fmt(result.msb),fmt(result.F,4),fmt(result.p,4)],
+      ["群組內",fmt(result.ssw),result.df2,fmt(result.msw),"—","—"]
+    ]);
+    state.lastResult=result;$("resultPanel").className=`result ${result.p<.05?"warn":"good"}`;$("resultPanel").innerHTML=`F(${result.df1}, ${result.df2})=${fmt(result.F)}；p=${fmt(result.p,4)}；eta squared=${fmt(result.eta_squared)}。${result.p<.05?"請接續 Tukey HSD。":""}`;
+  }
+  function executeWelchAnova(){
+    const result=welchAnovaFromGroups(stateGroups());
+    tableStage(["群組","n","Mean","Variance","Weight"],result.groups.map(group=>[group.name,group.n,fmt(group.mean),fmt(group.variance),fmt(group.weight)]));
+    state.lastResult=result;$("resultPanel").className=`result ${result.p<.05?"warn":"good"}`;$("resultPanel").innerHTML=`Welch F(${fmt(result.df1,1)}, ${fmt(result.df2,2)})=${fmt(result.F)}；p=${fmt(result.p,4)}；eta squared=${fmt(result.eta_squared)}。${result.p<.05?"請接續 Games-Howell。":""}`;
+  }
+  function kruskalFromGroups(groupsInput){
+    const groups=normalizeGroupInput(groupsInput),tagged=[];groups.forEach(group=>group.values.forEach(value=>tagged.push({group:group.name,value})));
+    const ranks=rankValues(tagged.map(item=>item.value));tagged.forEach((item,index)=>item.rank=ranks[index]);
+    const N=tagged.length,details=groups.map(group=>{const items=tagged.filter(item=>item.group===group.name),rankSum=sum(items.map(item=>item.rank));return {name:group.name,n:items.length,rank_sum:rankSum,mean_rank:rankSum/items.length}});
+    let H=12/(N*(N+1))*sum(details.map(group=>group.rank_sum**2/group.n))-3*(N+1);
+    const counts={};tagged.forEach(item=>counts[item.value]=(counts[item.value]||0)+1);
+    const tieCorrection=1-sum(Object.values(counts).map(count=>count**3-count))/(N**3-N);H/=tieCorrection;
+    const df=groups.length-1,p=chiSquareSurvival(H,df),epsilon=(H-groups.length+1)/(N-groups.length);
+    return {H,df,p,epsilon_squared:epsilon,tie_correction:tieCorrection,groups:details,N};
+  }
+  function executeKruskal(){
+    const result=kruskalFromGroups(stateGroups());
+    tableStage(["群組","n","平均秩","秩和"],result.groups.map(group=>[group.name,group.n,fmt(group.mean_rank,2),fmt(group.rank_sum,2)]));
+    state.lastResult=result;$("resultPanel").className=`result ${result.p<.05?"warn":"good"}`;$("resultPanel").innerHTML=`H(${result.df})=${fmt(result.H)}；p=${fmt(result.p,4)}；epsilon squared=${fmt(result.epsilon_squared)}。${result.p<.05?"請接續 Dunn + Bonferroni。":""}`;
+  }
+
+  function differencePlot(comparisons){
+    const canvas=$("differenceCanvas");if(!canvas)return;
+    const rect=canvas.getBoundingClientRect(),dpr=devicePixelRatio||1,w=Math.max(620,rect.width),h=Math.max(250,comparisons.length*30+70);
+    canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.height=`${h}px`;const ctx=canvas.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);
+    const finite=comparisons.flatMap(item=>item.ci?.filter(Number.isFinite)||[]).concat(comparisons.map(item=>item.difference)),[lo,hi]=bounds(finite),m={l:150,r:35,t:25,b:35};
+    const X=value=>m.l+(value-lo)/(hi-lo)*(w-m.l-m.r),Y=index=>m.t+(index+.5)*(h-m.t-m.b)/comparisons.length;
+    ctx.fillStyle="#060b14";ctx.fillRect(0,0,w,h);ctx.strokeStyle="#42516a";ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(X(0),m.t);ctx.lineTo(X(0),h-m.b);ctx.stroke();ctx.setLineDash([]);
+    comparisons.forEach((item,index)=>{
+      const y=Y(index),label=`${item.group_a} - ${item.group_b}`;ctx.fillStyle="#cbd8ea";ctx.font="11px sans-serif";ctx.textAlign="right";ctx.fillText(label,m.l-10,y+4);
+      if(item.ci?.every(Number.isFinite)){ctx.strokeStyle=item.significant?"#ff7f91":"#69d8c0";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(X(item.ci[0]),y);ctx.lineTo(X(item.ci[1]),y);ctx.stroke()}
+      ctx.fillStyle=item.significant?"#ff7f91":"#7c9cff";
+      if(item.significant)ctx.fillRect(X(item.difference)-4,y-4,8,8);else{ctx.beginPath();ctx.arc(X(item.difference),y,4,0,Math.PI*2);ctx.fill()}
+    });
+    ctx.fillStyle="#9bacc4";ctx.textAlign="center";ctx.fillText("Difference with 95% CI",w/2,h-8);
+  }
+  function renderPairwise(method,comparisons){
+    $("stageShell").innerHTML=`<div class="posthoc-stage"><canvas id="differenceCanvas"></canvas>
+      <div class="tablewrap"><table><thead><tr>${["Group A","Group B","Difference","SE","Statistic","Raw p","Adjusted p","95% CI","Significant"].map(item=>`<th>${item}</th>`).join("")}</tr></thead>
+      <tbody>${comparisons.map(item=>`<tr><td>${esc(item.group_a)}</td><td>${esc(item.group_b)}</td><td>${fmt(item.difference)}</td><td>${fmt(item.standard_error)}</td><td>${fmt(item.statistic)}</td><td>${fmt(item.raw_p_value,4)}</td><td>${fmt(item.adjusted_p_value,4)}</td><td>${esc(formatCI(item.ci))}</td><td>${item.significant?"YES":"NO"}</td></tr>`).join("")}</tbody></table></div></div>`;
+    differencePlot(comparisons);
+    const significant=comparisons.filter(item=>item.significant);
+    state.lastResult={method,comparisons,significant_pairs:significant.map(item=>[item.group_a,item.group_b])};
+    $("resultPanel").className=`result ${significant.length?"warn":"good"}`;$("resultPanel").innerHTML=`${comparisons.length} 組成對比較；調整後顯著 ${significant.length} 組。多重比較已調整 p-value。`;
+  }
+  function executeTukey(){renderPairwise("Tukey HSD",tukeyComparisons(stateGroups()))}
+  function executeGamesHowell(){renderPairwise("Games-Howell",gamesHowellComparisons(stateGroups()))}
+  function executeDunn(){renderPairwise("Dunn + Bonferroni",dunnComparisons(stateGroups()))}
+
+  function stableStringify(value){
+    if(value==null||typeof value!=="object")return JSON.stringify(value);
+    if(Array.isArray(value))return `[${value.map(stableStringify).join(",")}]`;
+    return `{${Object.keys(value).sort().map(key=>`${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
+  }
+  function resultHash(value){
+    const text=stableStringify(value);let hash=2166136261;
+    for(let index=0;index<text.length;index++){hash^=text.charCodeAt(index);hash=Math.imul(hash,16777619)}
+    return `fnv1a-${(hash>>>0).toString(16).padStart(8,"0")}`;
+  }
+  function constantsForProcedure(id){
+    if(id==="spc.xbar_r")return {d2:D2,A2,D3,D4};
+    if(id==="spc.imr")return {d2_individual:1.128,D4_mr:3.267};
+    if(id==="spc.capability")return {d2:D2};
+    return {};
+  }
+  function assumptionReportForProcedure(proc){
+    if(proc.roles?.factor&&proc.roles?.response)return groupAssumptionReport();
+    if(proc.category==="relation"){
+      const pairs=paired(state.params.x,state.params.y),x=pairs.map(item=>item.x),y=pairs.map(item=>item.y);
+      return {valid:pairs.length>=3,n:pairs.length,x_has_variation:new Set(x).size>1,y_has_variation:new Set(y).size>1,warnings:pairs.length<8?["樣本數偏小。"]:[]};
+    }
+    return {valid:true,assumptions:proc.assumptions||[],warnings:[]};
+  }
+  function finalizeProcedureResult(proc,validation,raw,status="Completed"){
+    const executedAt=new Date().toISOString(),assumptionReport=state.assumptionReport||assumptionReportForProcedure(proc),excludedRows=collectExcludedRows(proc);
+    const statistics=raw?.schema_version==="std.result.v1"?raw.statistics:raw;
+    const resultIR={schema_version:"std.result.v1",engine_version:ENGINE_VERSION,procedure_id:proc.id,procedure_version:proc.version,executed_at:executedAt,status,parameters:JSON.parse(JSON.stringify(state.params)),assumption_status:assumptionReport,statistics,warnings:[...validation.warnings,...(assumptionReport.warnings||[])],excluded_rows:excludedRows};
+    const hash=resultHash({procedure_id:proc.id,procedure_version:proc.version,parameters:resultIR.parameters,statistics});
+    const audit={engine_version:ENGINE_VERSION,procedure_id:proc.id,procedure_version:proc.version,executed_at:executedAt,source:{file_name:state.fileName||"memory",sheet_name:state.sheetName||null,row_count:state.rows.length},mapping:{...state.mapping,...(state.std?.translator?.source_to_std||{})},parameters:resultIR.parameters,constants:constantsForProcedure(proc.id),excluded_rows:excludedRows,warnings:resultIR.warnings,result_hash:hash,status};
+    state.auditTrail.push(audit);if(state.auditTrail.length>200)state.auditTrail.shift();
+    state.assumptionReport=assumptionReport;state.lastResult=resultIR;state.procedureStatus[proc.id]=status;
+    return resultIR;
+  }
+
+  /* ===== developer/statistical-self-test.js ===== */
+  const TEST_CASES=[
+    {id:"mean_001",label:"Mean",expected:2.5,compute:()=>mean([1,2,3,4])},
+    {id:"sd_001",label:"Sample SD",expected:1,compute:()=>sampleStd([1,2,3])},
+    {id:"quantile_025",label:"Quantile 25%",expected:1.75,compute:()=>quantile([1,2,3,4],.25)},
+    {id:"quantile_075",label:"Quantile 75%",expected:3.25,compute:()=>quantile([1,2,3,4],.75)},
+    {id:"anova_f_001",label:"ANOVA F",expected:27,compute:()=>anovaFromGroups([[1,2,3],[4,5,6],[7,8,9]]).F},
+    {id:"anova_eta_001",label:"ANOVA eta squared",expected:.9,compute:()=>anovaFromGroups([[1,2,3],[4,5,6],[7,8,9]]).eta_squared},
+    {id:"welch_anova_001",label:"Welch ANOVA F",expected:23.142857142857142,compute:()=>welchAnovaFromGroups([[1,2,3],[4,5,6],[7,8,9]]).F},
+    {id:"one_sample_t_001",label:"One-sample t",expected:.8660254037844386,compute:()=>oneSampleTFrom([2,4,6],3).t},
+    {id:"pooled_t_001",label:"Pooled t",expected:-3.6742346141747673,compute:()=>twoSampleTFrom([1,2,3],[4,5,6],false).t},
+    {id:"welch_t_001",label:"Welch t",expected:-3.6742346141747673,compute:()=>twoSampleTFrom([1,2,3],[4,5,6],true).t},
+    {id:"paired_t_001",label:"Paired t",expected:4,compute:()=>pairedTFrom([5,7,9],[4,5,8]).t},
+    {id:"regression_slope_001",label:"Regression slope",expected:1.5,compute:()=>regressionFromArrays([1,2,3],[2,4,5]).slope},
+    {id:"regression_r2_001",label:"Regression R squared",expected:.9642857142857143,compute:()=>regressionFromArrays([1,2,3],[2,4,5]).r_squared},
+    {id:"cpk_001",label:"Cpk",expected:2.6805833333333333,compute:()=>capabilityFromGroups([[9,10,11],[10,11,12]],0,20).cpk},
+    {id:"ppk_001",label:"Ppk",expected:3.0192981992777086,compute:()=>capabilityFromGroups([[9,10,11],[10,11,12]],0,20).ppk},
+    {id:"imr_ucl_001",label:"I-MR individual UCL",expected:13.546099290780141,compute:()=>imrLimitsFrom([10,11,9,10]).individual.ucl},
+    {id:"xbar_r_ucl_001",label:"Xbar-R Xbar UCL",expected:5.046,compute:()=>xbarRLimitsFrom([[1,2,3],[2,3,4],[3,4,5]]).xbar.ucl},
+    {id:"pca_eigen_001",label:"PCA eigenvalue",expected:2,compute:()=>jacobiEigen([[1,1],[1,1]]).values[0]}
+  ];
+  function runSelfTests(){
+    const tolerance=1e-8,details=TEST_CASES.map(test=>{
+      let actual,error=null;try{actual=test.compute()}catch(exception){actual=NaN;error=exception.message}
+      const absoluteError=Math.abs(actual-test.expected),pass=Number.isFinite(actual)&&absoluteError<=tolerance;
+      return {id:test.id,label:test.label,expected:test.expected,actual,error:absoluteError,tolerance,status:pass?"PASS":"FAIL",message:error};
+    });
+    return {engine_version:ENGINE_VERSION,pass:details.filter(test=>test.status==="PASS").length,fail:details.filter(test=>test.status==="FAIL").length,details};
+  }
+  function executeSelfTest(){
+    const report=runSelfTests();
+    tableStage(["ID","Test","Expected","Actual","Error","Tolerance","Status"],report.details.map(test=>[test.id,test.label,fmt(test.expected,10),fmt(test.actual,10),fmt(test.error,12),test.tolerance,test.status]));
+    state.lastResult=report;$("resultPanel").className=`result ${report.fail?"bad":"good"}`;$("resultPanel").innerHTML=`PASS ${report.pass}<br>FAIL ${report.fail}<br>每項測試均比較固定預期值與數值誤差。`;
+  }
+
+  function capabilityStats(){
+    const col=state.params.metric,a=values(col),s=state.specs[col]||{},mu=mean(a),overall=sampleStd(a),g=grouped(col,"lot"),groups=[...g],sizes=groups.map(([,x])=>x.length),consistent=new Set(sizes).size===1,n=consistent?sizes[0]:null;
+    const within=consistent&&D2[n]?mean(groups.map(([,x])=>Math.max(...x)-Math.min(...x)))/D2[n]:null;
+    const cap=sigma=>{if(!sigma||!(s.lsl!=null||s.usl!=null))return null;if(s.lsl!=null&&s.usl!=null)return Math.min((s.usl-mu)/(3*sigma),(mu-s.lsl)/(3*sigma));return s.lsl!=null?(mu-s.lsl)/(3*sigma):(s.usl-mu)/(3*sigma)};
+    return {metric:col,n:a.length,mean:mu,overall_sigma:overall,within_sigma:within,cpk:cap(within),ppk:cap(overall),spec:s,subgroup:{consistent,size:n,count:groups.length}};
+  }
+  function renderCapability(){
+    const c=capabilityStats();if(!c.n)return emptyStage("沒有有效數值。");drawHistogram(true);
+    state.lastResult={procedure:"spc.capability",...c};
+    const has=c.spec.lsl!=null||c.spec.usl!=null;
+    $("resultPanel").className=`result ${has?"good":"warn"}`;$("resultPanel").innerHTML=has
+      ?`平均=${fmt(c.mean)}<br>組內 σ=${fmt(c.within_sigma)}<br>整體 s=${fmt(c.overall_sigma)}<br>Cpk=${fmt(c.cpk)}<br>Ppk=${fmt(c.ppk)}`
+      :"尚未提供 LSL／USL，無法計算能力指標。";
+  }
+  /* ===== statistics/spc.js + charts/spc.js ===== */
+  const SPC_RULES=[
+    {id:"nelson.rule_1",label:"一點超出 3 sigma",symbol:"circle"},
+    {id:"nelson.rule_2",label:"連續 9 點位於中心線同一側",symbol:"square"},
+    {id:"nelson.rule_3",label:"連續 6 點持續上升或下降",symbol:"triangle"},
+    {id:"nelson.rule_4",label:"連續 14 點上下交替",symbol:"diamond"},
+    {id:"nelson.rule_5",label:"3 點中有 2 點超過同側 2 sigma",symbol:"cross"},
+    {id:"nelson.rule_6",label:"5 點中有 4 點超過同側 1 sigma",symbol:"star"}
+  ];
+  function uniqueSorted(items){return [...new Set(items)].sort((a,b)=>a-b)}
+  function evaluateSpcRules(series,limits,labels=series.map((_,index)=>String(index+1)),mode="individual"){
+    const sigma=(limits.ucl-limits.cl)/3,windows=Object.fromEntries(SPC_RULES.map(rule=>[rule.id,[]]));
+    const add=(id,indices)=>windows[id].push(indices);
+    const out=series.map((value,index)=>value>limits.ucl||value<limits.lcl?index:null).filter(index=>index!=null);
+    if(out.length)add("nelson.rule_1",out);
+    if(mode==="individual"&&sigma>0){
+      for(let start=0;start<=series.length-9;start++){
+        const z=series.slice(start,start+9).map(value=>value-limits.cl);
+        if(z.every(value=>value>0)||z.every(value=>value<0))add("nelson.rule_2",Array.from({length:9},(_,index)=>start+index));
+      }
+      for(let start=0;start<=series.length-6;start++){
+        const window=series.slice(start,start+6),diffs=window.slice(1).map((value,index)=>value-window[index]);
+        if(diffs.every(value=>value>0)||diffs.every(value=>value<0))add("nelson.rule_3",Array.from({length:6},(_,index)=>start+index));
+      }
+      for(let start=0;start<=series.length-14;start++){
+        const window=series.slice(start,start+14),diffs=window.slice(1).map((value,index)=>Math.sign(value-window[index]));
+        if(diffs.every((value,index)=>value!==0&&(index===0||value===-diffs[index-1])))add("nelson.rule_4",Array.from({length:14},(_,index)=>start+index));
+      }
+      for(let start=0;start<=series.length-3;start++){
+        const z=series.slice(start,start+3).map(value=>(value-limits.cl)/sigma);
+        const upper=z.map((value,index)=>value>2?start+index:null).filter(index=>index!=null),lower=z.map((value,index)=>value<-2?start+index:null).filter(index=>index!=null);
+        if(upper.length>=2)add("nelson.rule_5",upper);if(lower.length>=2)add("nelson.rule_5",lower);
+      }
+      for(let start=0;start<=series.length-5;start++){
+        const z=series.slice(start,start+5).map(value=>(value-limits.cl)/sigma);
+        const upper=z.map((value,index)=>value>1?start+index:null).filter(index=>index!=null),lower=z.map((value,index)=>value<-1?start+index:null).filter(index=>index!=null);
+        if(upper.length>=4)add("nelson.rule_6",upper);if(lower.length>=4)add("nelson.rule_6",lower);
+      }
+    }
+    return SPC_RULES.flatMap(rule=>{
+      const sequences=windows[rule.id],indices=uniqueSorted(sequences.flat());
+      return indices.length?[{rule_id:rule.id,label:rule.label,symbol:rule.symbol,indices,points:indices.map(index=>labels[index]),message:`${rule.label}：${indices.map(index=>labels[index]).join("、")}`,sequences:sequences.map(sequence=>sequence.map(index=>labels[index]))}]:[];
+    });
+  }
+  function marker(ctx,x,y,symbol,color="#ff7f91"){
+    ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=2;
+    if(symbol==="circle"){ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);ctx.stroke()}
+    else if(symbol==="square")ctx.strokeRect(x-5,y-5,10,10);
+    else if(symbol==="triangle"){ctx.beginPath();ctx.moveTo(x,y-6);ctx.lineTo(x+6,y+5);ctx.lineTo(x-6,y+5);ctx.closePath();ctx.stroke()}
+    else if(symbol==="diamond"){ctx.beginPath();ctx.moveTo(x,y-6);ctx.lineTo(x+6,y);ctx.lineTo(x,y+6);ctx.lineTo(x-6,y);ctx.closePath();ctx.stroke()}
+    else if(symbol==="cross"){ctx.beginPath();ctx.moveTo(x-5,y-5);ctx.lineTo(x+5,y+5);ctx.moveTo(x+5,y-5);ctx.lineTo(x-5,y+5);ctx.stroke()}
+    else{for(let index=0;index<8;index++){const angle=index*Math.PI/4,r=index%2?3:6,nx=x+Math.cos(angle)*r,ny=y+Math.sin(angle)*r;index?ctx.lineTo(nx,ny):ctx.moveTo(nx,ny)}ctx.closePath();ctx.stroke()}
+    ctx.restore();
+  }
+  function ensureChartTooltip(){
+    let tooltip=$("chartTooltip");if(!tooltip){tooltip=document.createElement("div");tooltip.id="chartTooltip";tooltip.className="chart-tooltip";document.body.appendChild(tooltip)}
+    return tooltip;
+  }
+  function bindCanvasRuleTooltip(canvas,hitPoints){
+    const tooltip=ensureChartTooltip();
+    const show=event=>{
+      const rect=canvas.getBoundingClientRect(),x=event.clientX-rect.left,y=event.clientY-rect.top;
+      const hit=hitPoints.find(point=>Math.hypot(point.x-x,point.y-y)<11);
+      if(!hit){tooltip.classList.remove("show");return}
+      tooltip.innerHTML=`<b>${esc(hit.label)}</b><br>${esc(hit.ruleIds.join(" · "))}`;
+      tooltip.style.left=`${event.clientX+12}px`;tooltip.style.top=`${event.clientY+12}px`;tooltip.classList.add("show");
+    };
+    canvas.addEventListener("mousemove",show);canvas.addEventListener("click",show);canvas.addEventListener("mouseleave",()=>tooltip.classList.remove("show"));
+  }
+  function drawControlPanel(ctx,w,values,limits,labels,violations,top,height,title,mode,hitPoints){
+    const all=values.concat([limits.lcl,limits.ucl]),[lo,hi]=bounds(all),m={l:58,r:26},X=index=>m.l+index*(w-m.l-m.r)/(values.length-1),Y=value=>top+30+(hi-value)*(height-66)/(hi-lo);
+    ctx.strokeStyle="#24344c";ctx.lineWidth=1;for(let index=0;index<=4;index++){const y=top+30+index*(height-66)/4;ctx.beginPath();ctx.moveTo(m.l,y);ctx.lineTo(w-m.r,y);ctx.stroke()}
+    [["UCL",limits.ucl],["CL",limits.cl],["LCL",limits.lcl]].forEach(([label,value])=>{
+      ctx.strokeStyle=label==="CL"?"#69d8c0":"#ffc267";ctx.setLineDash(label==="CL"?[3,4]:[6,4]);ctx.beginPath();ctx.moveTo(m.l,Y(value));ctx.lineTo(w-m.r,Y(value));ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle="#cbd8ea";ctx.font="9px sans-serif";ctx.textAlign="right";ctx.fillText(`${label} ${fmt(value)}`,w-m.r,Y(value)-3);
+    });
+    ctx.strokeStyle=mode==="range"?"#69d8c0":"#7c9cff";ctx.lineWidth=2;ctx.beginPath();values.forEach((value,index)=>index?ctx.lineTo(X(index),Y(value)):ctx.moveTo(X(index),Y(value)));ctx.stroke();
+    values.forEach((value,index)=>{ctx.fillStyle=mode==="range"?"#69d8c0":"#7c9cff";ctx.beginPath();ctx.arc(X(index),Y(value),3.2,0,Math.PI*2);ctx.fill()});
+    const pointRules=new Map();
+    violations.forEach((violation,ruleIndex)=>violation.indices.forEach(index=>{
+      if(!pointRules.has(index))pointRules.set(index,[]);
+      pointRules.get(index).push(violation);
+      marker(ctx,X(index)+ruleIndex*1.5,Y(values[index])-ruleIndex*1.5,violation.symbol);
+    }));
+    pointRules.forEach((rules,index)=>hitPoints.push({x:X(index),y:Y(values[index]),label:labels[index],ruleIds:rules.map(rule=>rule.rule_id)}));
+    ctx.fillStyle="#d8e5f7";ctx.font="12px sans-serif";ctx.textAlign="left";ctx.fillText(title,14,top+17);
+    ctx.fillStyle="#9bacc4";ctx.font="9px sans-serif";ctx.textAlign="center";
+    labels.forEach((label,index)=>ctx.fillText(label,X(index),top+height-8));
+  }
+  function violationsHtml(items){
+    return items.length?items.map(item=>`<div><b>${esc(item.chart)} · ${esc(item.rule_id)}</b>：${esc(item.points.join("、"))}</div>`).join(""):"未觸發規則。";
+  }
+  function drawIMR(){
+    const column=state.params.metric,limits=imrLimitsFrom(values(column));if(!limits.valid)return emptyStage("I-MR 至少需要 3 筆依序資料。");
+    const labels=limits.values.map((_,index)=>String(index+1)),mrLabels=limits.mr.map((_,index)=>String(index+2));
+    const iRules=evaluateSpcRules(limits.values,limits.individual,labels,"individual"),mrRules=evaluateSpcRules(limits.mr,limits.moving_range,mrLabels,"range");
+    const {cv,ctx,w,h}=setupCanvas(),hitPoints=[];ctx.fillStyle="#060b14";ctx.fillRect(0,0,w,h);
+    drawControlPanel(ctx,w,limits.values,limits.individual,labels,iRules,0,260,`${column}｜Individual`,"individual",hitPoints);
+    drawControlPanel(ctx,w,limits.mr,limits.moving_range,mrLabels,mrRules,260,260,"Moving Range","range",hitPoints);
+    bindCanvasRuleTooltip(cv,hitPoints);
+    const violations=[...iRules.map(item=>({...item,chart:"individual"})),...mrRules.map(item=>({...item,chart:"moving_range"}))];
+    state.lastResult={metric:column,individual:limits.individual,moving_range:limits.moving_range,violations};
+    $("resultPanel").className=`result ${violations.length?"warn":"good"}`;$("resultPanel").innerHTML=violationsHtml(violations);
+  }
+  function drawXbarR(){
+    if(!state.mapping.lot)return emptyStage("請先指定 LOT 欄位。");
+    const column=state.params.metric,groups=[...grouped(column,"lot")].map(([name,items])=>({name,values:items})),limits=xbarRLimitsFrom(groups);
+    if(!limits.valid)return emptyStage("Xbar-R 需要至少 3 個大小一致且 n=2 至 10 的子組。");
+    const labels=limits.statistics.map(item=>item.name),means=limits.statistics.map(item=>item.mean),ranges=limits.statistics.map(item=>item.range);
+    const xRules=evaluateSpcRules(means,limits.xbar,labels,"individual"),rRules=evaluateSpcRules(ranges,limits.range,labels,"range");
+    const {cv,ctx,w,h}=setupCanvas(),hitPoints=[];ctx.fillStyle="#060b14";ctx.fillRect(0,0,w,h);
+    drawControlPanel(ctx,w,means,limits.xbar,labels,xRules,0,260,`${column}｜Xbar`,"individual",hitPoints);
+    drawControlPanel(ctx,w,ranges,limits.range,labels,rRules,260,260,`${column}｜R`,"range",hitPoints);
+    bindCanvasRuleTooltip(cv,hitPoints);
+    const violations=[...xRules.map(item=>({...item,chart:"xbar"})),...rRules.map(item=>({...item,chart:"range"}))];
+    state.lastResult={metric:column,subgroup_size:limits.n,xbar:limits.xbar,range:limits.range,violations};
+    $("resultPanel").className=`result ${violations.length?"warn":"good"}`;$("resultPanel").innerHTML=`子組 n=${limits.n}<br>${violationsHtml(violations)}`;
+  }
+
+  function corrMatrix(cols){
+    return cols.map(a=>cols.map(b=>{
+      const pairs=state.rows.map(r=>[toNumber(r[a]),toNumber(r[b])]).filter(x=>x[0]!=null&&x[1]!=null);
+      return pairs.length>=3?pearson(pairs.map(x=>x[0]),pairs.map(x=>x[1])):null;
+    }));
+  }
+  function drawHeatmap(){
+    const cols=state.params.metrics.filter(x=>state.headers.includes(x));if(cols.length<2)return emptyStage("至少選擇 2 個數值欄位。");
+    const mat=corrMatrix(cols),{ctx,w,h}=setupCanvas(),m={l:120,t:90,r:25,b:35},cell=Math.min((w-m.l-m.r)/cols.length,(h-m.t-m.b)/cols.length);
+    ctx.fillStyle="#060b14";ctx.fillRect(0,0,w,h);ctx.font="10px sans-serif";
+    cols.forEach((c,i)=>{ctx.fillStyle="#d4e2f5";ctx.textAlign="right";ctx.fillText(c,m.l-8,m.t+i*cell+cell*.6);ctx.save();ctx.translate(m.l+i*cell+cell*.55,m.t-8);ctx.rotate(-Math.PI/4);ctx.textAlign="left";ctx.fillText(c,0,0);ctx.restore()});
+    mat.forEach((row,i)=>row.forEach((r,j)=>{const s=r==null?0:Math.abs(r),pos=(r??0)>=0;ctx.fillStyle=pos?`rgba(124,156,255,${.12+.78*s})`:`rgba(255,127,145,${.12+.78*s})`;ctx.fillRect(m.l+j*cell,m.t+i*cell,cell-1,cell-1);ctx.fillStyle=s>.55?"#08101d":"#edf4ff";ctx.textAlign="center";ctx.fillText(r==null?"—":fmt(r,2),m.l+j*cell+cell/2,m.t+i*cell+cell*.62)}));
+    state.lastResult={procedure:"multi.heatmap",columns:cols,correlation:mat};$("resultPanel").className="result good";$("resultPanel").innerHTML=`${cols.length} × ${cols.length} Pearson 相關矩陣。`;
+  }
+  function drawParallel(){
+    const cols=state.params.metrics.filter(x=>state.headers.includes(x));if(cols.length<3)return emptyStage("平行座標至少需要 3 個數值欄位。");
+    const complete=state.rows.map(r=>cols.map(c=>toNumber(r[c]))).filter(a=>a.every(v=>v!=null)).slice(0,250);if(!complete.length)return emptyStage("沒有完整的多變量樣本。");
+    const {ctx,w,h}=setupCanvas(),m={l:50,r:50,t:55,b:45},xs=cols.map((_,i)=>m.l+i*(w-m.l-m.r)/(cols.length-1)),ranges=cols.map((c,j)=>bounds(complete.map(r=>r[j])));
+    ctx.fillStyle="#060b14";ctx.fillRect(0,0,w,h);ctx.font="10px sans-serif";
+    cols.forEach((c,i)=>{ctx.strokeStyle="#41536e";ctx.beginPath();ctx.moveTo(xs[i],m.t);ctx.lineTo(xs[i],h-m.b);ctx.stroke();ctx.fillStyle="#d6e3f6";ctx.textAlign="center";ctx.fillText(c,xs[i],25)});
+    complete.forEach((row,ri)=>{ctx.globalAlpha=.22;ctx.strokeStyle=palette[ri%palette.length];ctx.beginPath();row.forEach((v,j)=>{const[lo,hi]=ranges[j],y=m.t+(hi-v)/(hi-lo)*(h-m.t-m.b);j?ctx.lineTo(xs[j],y):ctx.moveTo(xs[j],y)});ctx.stroke()});ctx.globalAlpha=1;
+    state.lastResult={procedure:"multi.parallel",columns:cols,complete_rows:complete.length};$("resultPanel").className="result good";$("resultPanel").innerHTML=`顯示 ${complete.length} 筆完整樣本、${cols.length} 個維度。`;
+  }
+  function jacobiEigen(A){
+    const n=A.length,V=Array.from({length:n},(_,i)=>Array.from({length:n},(_,j)=>i===j?1:0)),M=A.map(r=>[...r]);
+    for(let iter=0;iter<100*n*n;iter++){
+      let p=0,q=1,max=0;for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)if(Math.abs(M[i][j])>max){max=Math.abs(M[i][j]);p=i;q=j}
+      if(max<1e-10)break;const phi=.5*Math.atan2(2*M[p][q],M[q][q]-M[p][p]),c=Math.cos(phi),s=Math.sin(phi);
+      for(let i=0;i<n;i++){const mip=M[i][p],miq=M[i][q];M[i][p]=c*mip-s*miq;M[i][q]=s*mip+c*miq}
+      for(let j=0;j<n;j++){const mpj=M[p][j],mqj=M[q][j];M[p][j]=c*mpj-s*mqj;M[q][j]=s*mpj+c*mqj}
+      for(let i=0;i<n;i++){const vip=V[i][p],viq=V[i][q];V[i][p]=c*vip-s*viq;V[i][q]=s*vip+c*viq}
+    }
+    const vals=M.map((r,i)=>r[i]),idx=vals.map((v,i)=>i).sort((a,b)=>vals[b]-vals[a]);
+    return {values:idx.map(i=>vals[i]),vectors:idx.map(k=>V.map(r=>r[k]))};
+  }
+  function drawPCA(){
+    const cols=state.params.metrics.filter(x=>state.headers.includes(x));if(cols.length<3)return emptyStage("PCA 至少需要 3 個數值欄位。");
+    const complete=state.rows.map((r,ri)=>({row:r,ri,v:cols.map(c=>toNumber(r[c]))})).filter(x=>x.v.every(v=>v!=null));if(complete.length<5)return emptyStage("PCA 至少需要 5 筆完整樣本。");
+    const means=cols.map((_,j)=>mean(complete.map(x=>x.v[j]))),sds=cols.map((_,j)=>sampleStd(complete.map(x=>x.v[j]))||1),Z=complete.map(x=>x.v.map((v,j)=>(v-means[j])/sds[j]));
+    const p=cols.length,C=Array.from({length:p},(_,i)=>Array.from({length:p},(_,j)=>sum(Z.map(r=>r[i]*r[j]))/(Z.length-1)));
+    const eig=jacobiEigen(C),scores=Z.map((r,ri)=>({x:sum(r.map((v,j)=>v*eig.vectors[0][j])),y:sum(r.map((v,j)=>v*eig.vectors[1][j])),row:complete[ri].row}));
+    const {ctx,w,h}=setupCanvas(),m={l:58,r:25,t:35,b:48},[xlo,xhi]=bounds(scores.map(s=>s.x)),[ylo,yhi]=bounds(scores.map(s=>s.y));axes(ctx,w,h,m,xlo,xhi,ylo,yhi,"PC1","PC2");
+    const X=v=>m.l+(v-xlo)/(xhi-xlo)*(w-m.l-m.r),Y=v=>m.t+(yhi-v)/(yhi-ylo)*(h-m.t-m.b);
+    scores.forEach(s=>{const g=state.mapping.lot?s.row[state.mapping.lot]:"";ctx.fillStyle=g?colorFor(g):"#7c9cff";ctx.beginPath();ctx.arc(X(s.x),Y(s.y),4,0,Math.PI*2);ctx.fill()});
+    const total=sum(eig.values),ev1=eig.values[0]/total,ev2=eig.values[1]/total;
+    state.lastResult={procedure:"multi.pca",columns:cols,explained_variance:[ev1,ev2],eigenvalues:eig.values,scores:scores.map(s=>({pc1:s.x,pc2:s.y}))};
+    $("resultPanel").className="result good";$("resultPanel").innerHTML=`PC1 解釋 ${fmt(ev1*100,1)}%<br>PC2 解釋 ${fmt(ev2*100,1)}%<br>合計 ${fmt((ev1+ev2)*100,1)}%`;
+  }
+
+  function renderSchema(){
+    tableStage(["STD 項目","Source","Type","Unit","LSL","USL"],(state.std?.measurements||[]).map(m=>[m.std_id,m.source_label,m.data_type,m.canonical_unit||"—",m.specification.lsl??"—",m.specification.usl??"—"]));
+    state.lastResult={procedure:"std.schema",schema:state.std};$("resultPanel").className="result good";$("resultPanel").innerHTML="分析引擎只讀 STD ID、型別、單位、規格與資料角色。";
+  }
+  function translatorPrompt(){
+    return `You are the STD Data Translator and Result Narrator, not a statistics calculator.
+
+Allowed tasks:
+- Map source fields to STD IDs.
+- Propose a procedure plan for deterministic execution.
+- Translate already-computed Result IR into clear language.
+- Localize USER labels.
+
+Mandatory constraints:
+Do not calculate statistics.
+Do not invent specifications.
+Do not infer causality.
+Return only schema-compliant JSON.
+
+Never calculate p-value, F statistic, Cpk, Ppk, regression coefficients, control limits, PCA, or SPC rule decisions.
+
+Source fields:
+${state.headers.map(header=>`- ${header}`).join("\n")||"- No data loaded"}
+
+Available procedures:
+${Object.values(PROCEDURE_REGISTRY).map(proc=>`- ${proc.id} @ ${proc.version}: ${proc.label}`).join("\n")}
+
+Required output schema:
+{
+  "mapping": {},
+  "procedure_plan": [],
+  "requires_confirmation": [],
+  "result_translation": null
+}`;
+  }
+
+  function renderPrompt(){
+    $("stageShell").innerHTML=`<div class="table-stage"><pre class="code" style="max-height:none">${esc(translatorPrompt())}</pre></div>`;
+    state.lastResult={procedure:"std.prompt",prompt:translatorPrompt()};$("resultPanel").className="result";$("resultPanel").innerHTML="LLM 只負責翻譯與規劃；統計結果由 Procedure Engine 計算。";
+  }
+  function renderReport(){
+    const c=capabilityStats(),d=descriptives(state.params.metric),g=state.mapping.lot?grouped(state.params.metric,"lot"):new Map();
+    $("stageShell").innerHTML=`<div class="report">
+      <h2>${esc(state.specs[state.params.metric]?.label||state.params.metric||"統計")}｜主管分析摘要</h2>
+      <p>${esc(state.fileName||"memory")}｜STD Statistical Studio v0.6</p>
+      <div class="report-grid">
+        <div class="report-card"><small>有效筆數</small><strong>${d.n||0}</strong></div>
+        <div class="report-card"><small>平均值</small><strong>${fmt(d.mean)}</strong></div>
+        <div class="report-card"><small>Cpk</small><strong>${fmt(c.cpk)}</strong></div>
+        <div class="report-card"><small>Ppk</small><strong>${fmt(c.ppk)}</strong></div>
+      </div>
+      <div class="report-box"><b>可支持的結論</b><br>
+        ${d.n?`目前有 ${d.n} 筆有效量測；平均=${fmt(d.mean)}，SD=${fmt(d.sd)}。`:"沒有有效量測。"}<br>
+        ${c.cpk!=null?`在現有規格與子組設定下，Cpk=${fmt(c.cpk)}、Ppk=${fmt(c.ppk)}。`:"目前無法完成完整能力分析；可能缺少規格或合理子組。"}<br>
+        ${g.size>=2?`已有 ${g.size} 個 LOT，可進一步檢查批次中心與組內變異。`:"LOT 資訊不足。"}
+      </div>
+      <div class="report-box"><b>限制與禁止推論</b><br>
+        相關、迴歸、ANOVA 或機台分組差異都不能自動寫成因果。能力指標也不能取代管制圖與穩定性判斷。
+      </div>
+      <div class="report-box"><b>建議分析順序</b><br>
+        描述統計 → 分布／Q-Q → SPC 穩定性 → 能力分析 → 群組比較／迴歸。只有通過資料驗證的程序才應進入正式報告。
+      </div>
+    </div>`;
+    state.lastResult={procedure:"report.supervisor",descriptive:d,capability:c,lot_count:g.size};
+    $("resultPanel").className="result good";$("resultPanel").innerHTML="已產生主管摘要；可用瀏覽器列印另存 PDF。";
+  }
+
+  function logicCards(proc){
+    const map={
+      "describe.summary":[["對應思維","類 R summary()/describe；類 SAS PROC MEANS。"],["核心","統一處理 missing、quantile、SD、skewness、kurtosis。"]],
+      "compare.anova":[["對應思維","類 R aov()；類 SAS PROC ANOVA/GLM。"],["核心","SSB、SSW、F ratio、F survival probability。"]],
+      "relation.regression":[["對應思維","類 R lm()；類 SAS PROC REG。"],["核心","OLS normal equations、R²、斜率 t-test、residual diagnostics。"]],
+      "spc.capability":[["對應思維","類 capability procedure。"],["核心","組內 σ 與整體 s 分離，輸出 Cpk／Ppk。"]],
+      "spc.xbar_r":[["對應思維","類 Shewhart procedure。"],["核心","合理子組、R̄/d₂、A₂/D₃/D₄ 常數。"]],
+      "multi.pca":[["對應思維","類 prcomp()/PRINCOMP。"],["核心","標準化、相關矩陣、Jacobi 特徵分解、PC scores。"]]
+    };
+    return map[proc]||[["STD Runtime","Procedure 先宣告資料角色，再由 Validator 決定是否可執行。"],["Result IR","每個程序輸出機器可讀的結果，不由 LLM 自由改寫數值。"]];
+  }
+  /* ===== ui/output-tabs.js + core/runtime.js ===== */
+  function registryPlan(proc){
+    return {
+      procedure_id:proc.id,procedure_version:proc.version,category:proc.category,label:proc.label,
+      description:proc.description,variable_roles:proc.roles,minimum_requirements:proc.minimumRequirements,
+      assumptions:proc.assumptions,outputs:proc.outputs,recommended_charts:proc.recommendedCharts,
+      parameters:state.params,validator:"deterministic JavaScript",executor:"deterministic JavaScript"
+    };
+  }
+  function updateOutputs(){
+    const proc=PROCEDURE_REGISTRY[state.activeProc]||PROCEDURE_REGISTRY["data.overview"];
+    $("stdOut").textContent=JSON.stringify(state.std||{},null,2);
+    $("planOut").textContent=JSON.stringify(registryPlan(proc),null,2);
+    $("assumptionOut").textContent=JSON.stringify(state.assumptionReport||{},null,2);
+    $("resultOut").textContent=JSON.stringify(state.lastResult||{},null,2);
+    $("auditOut").textContent=JSON.stringify(state.auditTrail||[],null,2);
+    $("promptOut").textContent=translatorPrompt();
+  }
+  function setExecutionStatus(status,messages=[]){
+    const chip=document.querySelector("#executionPanel .status-chip");
+    if(chip){chip.textContent=status;chip.className=`status-chip ${statusClass(status)}`}
+    const badge=$("procedureBadge");if(badge){badge.textContent=status;badge.className=`badge ${statusClass(status)}`}
+    if(messages.length){
+      const list=document.querySelector("#executionPanel .validation-list");
+      if(list)list.innerHTML=messages.map(message=>`<div>${esc(message)}</div>`).join("");
+    }
+  }
+  function renderProcedure(force=false){
+    const proc=PROCEDURE_REGISTRY[state.activeProc]||PROCEDURE_REGISTRY["data.overview"];
+    state.activeProc=proc.id;
+    $("procTitle").textContent=proc.label;$("procDesc").textContent=proc.description;$("insTitle").textContent=proc.label;
+    $("methodId").textContent=`${proc.id} @ ${proc.version}`;$("methodRoles").textContent=roleSummary(proc);$("methodRule").textContent=proc.rule;
+    renderControls();
+    const validation=proc.validator(proc);
+    setExecutionStatus(validation.status,[...validation.errors,...validation.warnings]);
+    if(validation.status==="Rejected"){
+      emptyStage(validation.errors.join(" "));
+      $("resultPanel").className="result bad";$("resultPanel").innerHTML=validation.errors.map(error=>`REJECTED：${esc(error)}`).join("<br>");
+      state.assumptionReport={valid:false,warnings:validation.errors};
+      finalizeProcedureResult(proc,validation,{reason:validation.errors.join(" ")}, "Rejected");
+      updateOutputs();return;
+    }
+    try{
+      state.assumptionReport=null;state.lastResult=null;
+      proc.execute();
+      const raw=state.lastResult??{};
+      finalizeProcedureResult(proc,validation,raw,"Completed");
+      setExecutionStatus("Completed",validation.warnings);
+    }catch(error){
+      console.error(error);
+      emptyStage(`程序執行失敗：${error.message}`);
+      $("resultPanel").className="result bad";$("resultPanel").textContent=`執行失敗：${error.message}`;
+      finalizeProcedureResult(proc,{...validation,warnings:[...validation.warnings,error.message]},{error:error.message},"Rejected");
+      setExecutionStatus("Rejected",[error.message]);
+    }
+    updateOutputs();
+  }
+  window.STDStudioV06={
+    engineVersion:ENGINE_VERSION,
+    registry:PROCEDURE_REGISTRY,
+    categories:CATEGORY_REGISTRY,
+    getState:()=>state,
+    loadDemo,
+    runSelfTests,
+    evaluateSpcRules,
+    setProcedure:id=>{if(!PROCEDURE_REGISTRY[id])throw new Error(`Unknown procedure ${id}`);state.activeProc=id;buildNav();renderProcedure()},
+    statistics:{mean,sampleStd,quantile,anovaFromGroups,welchAnovaFromGroups,oneSampleTFrom,twoSampleTFrom,pairedTFrom,regressionFromArrays,capabilityFromGroups,imrLimitsFrom,xbarRLimitsFrom,tukeyComparisons,gamesHowellComparisons,dunnComparisons}
+  };
+
+  $("demoBtn").addEventListener("click",loadDemo);
+  $("fileInput").addEventListener("change",e=>handleFile(e.target.files[0]));
+  $("printBtn").addEventListener("click",()=>window.print());
+  $("exportBtn").addEventListener("click",()=>download("std_statistical_project_v0_5.json",JSON.stringify({engine_version:ENGINE_VERSION,std:state.std,procedure:state.activeProc,params:state.params,assumption_report:state.assumptionReport,result:state.lastResult,audit_trail:state.auditTrail},null,2)));
+  const dz=$("dropZone");
+  ["dragenter","dragover"].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add("drag")}));
+  ["dragleave","drop"].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.remove("drag")}));
+  dz.addEventListener("drop",e=>handleFile(e.dataTransfer.files[0]));
+  document.querySelectorAll(".tab").forEach(b=>b.addEventListener("click",()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));
+    document.querySelectorAll(".out-panel").forEach(x=>x.classList.toggle("active",x.id===`out-${b.dataset.tab}`));
+  }));
+  let resizeTimer;window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if($("chartCanvas")||$("differenceCanvas"))renderProcedure()},120)});
+
+  buildNav();renderStatus();renderProcedure();
+})();
+</script>
+</body>
+</html>
