@@ -85,3 +85,7 @@ The current release reports `PASS 18 / FAIL 0`.
 - LLM output is limited to mapping, planning, localization, and narration of already-calculated results.
 
 See [STATISTICAL_RULES.md](docs/STATISTICAL_RULES.md) for implementation notes and known numerical limitations.
+
+## License
+
+[MIT](LICENSE)
